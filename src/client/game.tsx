@@ -36,7 +36,7 @@ const BottomNav = ({
   tab: Tab;
   onChange: (tab: Tab) => void;
 }) => (
-  <nav className="flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] backdrop-blur">
+  <nav className="flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] backdrop-blur group-has-[[data-nav-slot]>*]/nav:invisible">
     {TABS.map((t) => {
       const active = t.id === tab;
       return (
@@ -107,8 +107,15 @@ export const App = () => {
           )}
         </div>
       </NavSlotContext>
-      <div ref={setNavSlot} />
-      <BottomNav tab={tab} onChange={setTab} />
+      {/* The slot overlays the nav; the nav hides while a bar is in it. */}
+      <div className="group/nav relative">
+        <div
+          ref={setNavSlot}
+          data-nav-slot
+          className="pointer-events-none absolute inset-0 z-10"
+        />
+        <BottomNav tab={tab} onChange={setTab} />
+      </div>
     </div>
   );
 };

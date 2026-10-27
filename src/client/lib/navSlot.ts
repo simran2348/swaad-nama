@@ -1,8 +1,8 @@
 import { createContext } from 'react';
 
 /**
- * A spot just above the bottom nav. Screens portal an action bar into it
- * (e.g. "Add to tier") so it sits on top of the nav, outside the scroll area.
+ * A layer over the bottom nav. Screens portal an action bar into it
+ * (e.g. "Add to tier") to cover the nav while it shows.
  */
 export const NavSlotContext = createContext<HTMLElement | null>(null);
 

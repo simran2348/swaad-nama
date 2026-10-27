@@ -208,25 +208,25 @@ export const PostPicker = ({
         </p>
       )}
 
-      {/* Sits on top of the bottom nav (same height) while posts are picked. */}
+      {/* Covers the bottom nav (same height) while posts are picked. */}
       {selected.length > 0 &&
         navSlot &&
         createPortal(
-          <div
-            className={`rise flex ${NAV_HEIGHT} items-center gap-3 border-t border-line bg-surface px-4 backdrop-blur`}
-          >
-            <button
-              onClick={() => setSelected([])}
-              className="text-sm font-semibold text-muted cursor-pointer hover:text-ink"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => setImporting(true)}
-              className="flex-1 rounded-full bg-cta px-4 py-2.5 font-bold text-cta-ink shadow-md cursor-pointer hover:brightness-95 transition"
-            >
-              Add {selected.length} to tier →
-            </button>
+          <div className="pointer-events-auto h-full border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] backdrop-blur">
+            <div className={`rise flex ${NAV_HEIGHT} items-center gap-3 px-4`}>
+              <button
+                onClick={() => setSelected([])}
+                className="text-sm font-semibold text-muted cursor-pointer hover:text-ink"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => setImporting(true)}
+                className="flex-1 rounded-full bg-cta px-4 py-2.5 font-bold text-cta-ink shadow-md cursor-pointer hover:brightness-95 transition"
+              >
+                Add {selected.length} to tier →
+              </button>
+            </div>
           </div>,
           navSlot
         )}
