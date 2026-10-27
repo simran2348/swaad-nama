@@ -17,6 +17,7 @@ import { MyList } from './components/MyList';
 import { Ratings } from './components/Ratings';
 import { Settings } from './components/Settings';
 import { fetchInit } from './lib/api';
+import { NAV_HEIGHT, NavSlotContext } from './lib/navSlot';
 import { initAppTheme, syncMode } from './lib/theme';
 
 type Tab = 'list' | 'ratings' | 'map' | 'settings';
@@ -44,7 +45,7 @@ const BottomNav = ({
           onClick={() => onChange(t.id)}
           title={t.label}
           aria-current={active ? 'page' : undefined}
-          className={`flex flex-1 flex-col items-center gap-0.5 pt-2 pb-2.5 text-[11px] font-bold cursor-pointer transition-colors ${
+          className={`flex ${NAV_HEIGHT} flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-bold cursor-pointer transition-colors ${
             active ? 'text-cta' : 'text-muted hover:text-ink'
           }`}
         >
@@ -61,6 +62,7 @@ export const App = () => {
   const [data, setData] = useState<InitResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const modeSynced = useRef(false);
+  const [navSlot, setNavSlot] = useState<HTMLElement | null>(null);
 
   const load = useCallback(() => {
     fetchInit()
@@ -81,28 +83,31 @@ export const App = () => {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col">
-        {tab === 'list' ? (
-          <MyList
-            data={data}
-            error={error}
-            onAdded={() => {
-              load();
-              // Show the new entries under their food categories.
-              setTab('ratings');
-            }}
-          />
-        ) : tab === 'ratings' ? (
-          <Ratings foods={data?.foods ?? []} />
-        ) : tab === 'map' ? (
-          <MapView data={data} />
-        ) : (
-          <Settings
-            subredditName={data?.subredditName ?? ''}
-            username={data?.username ?? null}
-          />
-        )}
-      </div>
+      <NavSlotContext value={navSlot}>
+        <div className="flex min-h-0 flex-1 flex-col">
+          {tab === 'list' ? (
+            <MyList
+              data={data}
+              error={error}
+              onAdded={() => {
+                load();
+                // Show the new entries under their food categories.
+                setTab('ratings');
+              }}
+            />
+          ) : tab === 'ratings' ? (
+            <Ratings foods={data?.foods ?? []} />
+          ) : tab === 'map' ? (
+            <MapView data={data} />
+          ) : (
+            <Settings
+              subredditName={data?.subredditName ?? ''}
+              username={data?.username ?? null}
+            />
+          )}
+        </div>
+      </NavSlotContext>
+      <div ref={setNavSlot} />
       <BottomNav tab={tab} onChange={setTab} />
     </div>
   );

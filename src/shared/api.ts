@@ -20,6 +20,10 @@ export type FoodReview = {
   /** Out of {@link MAX_RATING} (10). */
   rating: number;
   review: string;
+  /** Rough spend per person, in rupees (see `MAX_BUDGET` for "or more"). */
+  budget?: number;
+  /** Short tags like "Hidden gem" (up to 10). */
+  vibes: string[];
   /** Photo URLs (Reddit-hosted), from an imported post. */
   images: string[];
   /** When the review was saved in SwaadNama. */
@@ -86,6 +90,8 @@ export type CreateReviewRequest = {
   location?: PlaceLocation;
   rating: number;
   review: string;
+  budget?: number;
+  vibes?: string[];
   importedPostId: string;
   /** Which of the post's photos to show for the rating (defaults to the first). */
   coverImage?: string;
@@ -98,6 +104,9 @@ export type UpdateReviewRequest = {
   place: string;
   rating: number;
   review: string;
+  /** Left out to clear it. */
+  budget?: number;
+  vibes: string[];
 };
 
 /** A post's content, for the popup viewer. */

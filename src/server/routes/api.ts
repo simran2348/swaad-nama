@@ -22,7 +22,7 @@ import type {
 } from '../../shared/api';
 import { isAdmin } from '../../shared/admin';
 import { isAppMode, isPaletteId } from '../../shared/theme';
-import { isValidRating } from '../../shared/food';
+import { cleanVibes, isValidBudget, isValidRating } from '../../shared/food';
 import {
   fetchTile,
   getPostDetail,
@@ -326,6 +326,10 @@ const readRating = (
   const review = body.review?.trim() ?? '';
   const title = body.title?.trim() || `${food} at ${place}`;
   const rating = Number(body.rating);
+  const budget = body.budget === undefined ? undefined : Number(body.budget);
+  if (budget !== undefined && !isValidBudget(budget)) {
+    return { ok: false, message: 'Budget is out of range' };
+  }
   if (!food || !place || !isValidRating(rating)) {
     return {
       ok: false,
@@ -340,7 +344,18 @@ const readRating = (
   ) {
     return { ok: false, message: 'One of the fields is too long' };
   }
-  return { ok: true, value: { title, food, place, rating, review } };
+  return {
+    ok: true,
+    value: {
+      title,
+      food,
+      place,
+      rating,
+      review,
+      ...(budget !== undefined ? { budget } : {}),
+      vibes: cleanVibes(body.vibes),
+    },
+  };
 };
 
 const unauthorized = (c: Context) =>

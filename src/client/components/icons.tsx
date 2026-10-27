@@ -58,3 +58,17 @@ export const TrophyIcon = ({ className = '' }: { className?: string }) => (
     <path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4" />
   </svg>
 );
+
+/** Plus sign, for "add to tier". */
+export const PlusIcon = ({ className = '' }: { className?: string }) => (
+  <svg {...strokeProps} strokeWidth={2.5} aria-hidden className={className}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
+/** Minus sign, for "remove from selection". */
+export const MinusIcon = ({ className = '' }: { className?: string }) => (
+  <svg {...strokeProps} strokeWidth={2.5} aria-hidden className={className}>
+    <path d="M5 12h14" />
+  </svg>
+);

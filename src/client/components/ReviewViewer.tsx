@@ -1,7 +1,7 @@
 import { navigateTo, showToast } from '@devvit/web/client';
 import { useState } from 'react';
 import type { FoodReview } from '../../shared/api';
-import { MAX_RATING, tierFor } from '../../shared/food';
+import { MAX_RATING, formatBudget, tierFor } from '../../shared/food';
 import { deleteReview, updateReview } from '../lib/api';
 import { draftToUpdate, isDraftComplete } from '../lib/draft';
 import { formatDate, redditPostUrl } from '../lib/format';
@@ -17,6 +17,8 @@ const toDraft = (review: FoodReview): ReviewDraft => ({
   location: review.location,
   rating: review.rating,
   review: review.review,
+  budget: review.budget ?? 0,
+  vibes: review.vibes,
 });
 
 const secondaryButton =
@@ -198,6 +200,23 @@ export const ReviewViewer = ({
             <span className="text-xs font-bold text-muted">/{MAX_RATING}</span>
           </p>
         </div>
+        {(current.budget !== undefined || current.vibes.length > 0) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {current.budget !== undefined && (
+              <span className="rounded-full bg-cta px-2.5 py-1 text-xs font-bold text-cta-ink">
+                {formatBudget(current.budget)} / person
+              </span>
+            )}
+            {current.vibes.map((vibe) => (
+              <span
+                key={vibe}
+                className="rounded-full border border-line bg-soft px-2.5 py-1 text-xs font-semibold text-soft-ink"
+              >
+                {vibe}
+              </span>
+            ))}
+          </div>
+        )}
       </PostContent>
     </Modal>
   );

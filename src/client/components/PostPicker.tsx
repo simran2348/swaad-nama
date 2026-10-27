@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { MyPostsResponse } from '../../shared/api';
 import { tierFor } from '../../shared/food';
 import { fetchMyPosts } from '../lib/api';
@@ -6,12 +7,21 @@ import { ImportWizard } from './ImportWizard';
 import { EMPTY_LIST_IMAGE, useImageLoaded } from '../lib/art';
 import { formatDate } from '../lib/format';
 import { riseDelay } from '../lib/motion';
+import { NAV_HEIGHT, NavSlotContext } from '../lib/navSlot';
 import { TIER_COLORS } from '../lib/tiers';
 import { PostViewer } from './PostViewer';
 import { EmptyMascot } from './EmptyMascot';
+import { MinusIcon, PlusIcon } from './icons';
+import { Photo } from './Photo';
 import { EmptyState, LoadingState } from './ui';
 
 type Post = MyPostsResponse['posts'][number];
+
+/**
+ * Posts loaded so far, per user ('' = you), kept for the app session so
+ * switching tabs doesn't refetch them. Reopening the post starts fresh.
+ */
+const postCache = new Map<string, { posts: Post[]; cursor: string | null }>();
 
 /**
  * Posts in this subreddit, a page at a time (shown in My List). Your own
@@ -20,21 +30,22 @@ type Post = MyPostsResponse['posts'][number];
  * scrolling container; the action bar sticks to its bottom.
  */
 export const PostPicker = ({
-  subredditName,
   foods,
   onAdded,
   username,
 }: {
-  subredditName: string;
   foods: string[];
   onAdded: () => void;
   /** View this user's posts instead of your own. */
   username?: string;
 }) => {
   const own = !username;
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const navSlot = useContext(NavSlotContext);
+  const cacheKey = username ?? '';
+  const cached = postCache.get(cacheKey);
+  const [posts, setPosts] = useState<Post[]>(cached?.posts ?? []);
+  const [cursor, setCursor] = useState<string | null>(cached?.cursor ?? null);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
@@ -48,7 +59,13 @@ export const PostPicker = ({
     setError(null);
   }, []);
 
+  // Keep the cache in step with what's shown (new pages, fresh ratings).
   useEffect(() => {
+    if (!loading && !error) postCache.set(cacheKey, { posts, cursor });
+  }, [cacheKey, posts, cursor, loading, error]);
+
+  useEffect(() => {
+    if (postCache.has(cacheKey)) return;
     let cancelled = false;
     fetchMyPosts(undefined, username)
       .then((res) => !cancelled && applyPage(res, false))
@@ -57,7 +74,7 @@ export const PostPicker = ({
     return () => {
       cancelled = true;
     };
-  }, [applyPage, username]);
+  }, [applyPage, username, cacheKey]);
 
   const loadMore = (after: string) => {
     setLoading(true);
@@ -76,89 +93,83 @@ export const PostPicker = ({
 
   return (
     <section className="flex flex-1 flex-col gap-2">
-      {/* Hidden when empty so the empty state sits centred on its own. */}
-      <div
-        className={`px-1 ${!loading && !error && posts.length === 0 ? 'hidden' : ''}`}
-      >
-        <h2 className="font-extrabold text-ink">
-          {own ? 'Your posts' : `u/${username}'s posts`}
-          {subredditName && (
-            <span className="font-semibold text-muted">
-              {' '}
-              in r/{subredditName}
-            </span>
-          )}
-        </h2>
-        {own && posts.length > 0 && (
-          <p className="text-xs text-muted">
-            Tap a post to view it. Tick posts to add them to your tier list.
-          </p>
-        )}
-      </div>
-      <ul className="flex flex-col gap-4">
+      {/* One card per row on phones, two on wider screens. */}
+      <ul className="grid grid-cols-1 gap-4 px-2 sm:grid-cols-2">
         {posts.map((post, i) => {
           const checked = selected.includes(post.postId);
           const selectable = own && post.rating === null;
           const tier = post.rating === null ? null : tierFor(post.rating);
           return (
-            // Photo card: the photo fills the back, offset right so the
-            // title sticker can hang off its bottom-left corner.
+            // Photo card: the cover photo fills the card, with the title
+            // and date on a theme-coloured band along the bottom.
             <li
               key={post.postId}
               style={riseDelay(i, 5)}
-              className="rise relative pb-5"
+              className="rise relative"
             >
               <button
                 onClick={() => setViewing(post.postId)}
                 aria-label={`View "${post.title}"`}
-                className="block w-full text-left cursor-pointer"
+                className={`relative isolate block h-40 w-full transform-gpu overflow-hidden rounded-2xl text-left shadow-lg shadow-black/15 cursor-pointer sm:h-44 ${
+                  post.image ? 'bg-black' : 'bg-neutral-200 dark:bg-neutral-800'
+                }`}
               >
-                <span
-                  className={`ml-4 flex h-44 items-center justify-center overflow-hidden rounded-2xl bg-cta/15 shadow-md transition ${
-                    checked ? 'ring-4 ring-cta' : ''
-                  }`}
-                >
-                  {post.image ? (
-                    <img
-                      src={post.image}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span aria-hidden className="text-5xl">
-                      🍽️
-                    </span>
-                  )}
-                </span>
-                <span className="absolute bottom-0 left-0 flex max-w-[85%] flex-col rounded-xl border border-line bg-field px-3.5 py-2.5 shadow-lg">
-                  <span className="truncate text-sm font-bold text-ink">
+                {post.image ? (
+                  <Photo src={post.image} />
+                ) : (
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 flex items-center justify-center pb-10 text-5xl"
+                  >
+                    🍽️
+                  </span>
+                )}
+                <span className="absolute -inset-x-px -bottom-px flex flex-col rounded-b-2xl bg-white/95 px-3.5 py-2.5 text-neutral-900 dark:bg-neutral-900/95 dark:text-white">
+                  <span className="truncate text-sm font-bold">
                     {post.title}
                   </span>
-                  <span className="text-xs text-muted">
+                  <span className="text-xs opacity-70">
                     {formatDate(post.postedAt)}
                   </span>
                 </span>
               </button>
 
-              {/* Only your unrated posts can be ticked; rated ones lose the box. */}
-              {selectable && (
-                <label className="absolute top-2.5 left-6.5 flex h-8 w-8 items-center justify-center rounded-lg bg-black/45 backdrop-blur-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggle(post.postId)}
-                    aria-label={`Select "${post.title}"`}
-                    className="h-5 w-5 cursor-pointer accent-[var(--cta)]"
-                  />
-                </label>
-              )}
-              {tier && (
+              {/* Top right: the tier once rated, otherwise (your own posts
+                  only) a plus that toggles the post into the selection. */}
+              {tier ? (
                 <span
                   title={`${tier} tier`}
-                  className={`pointer-events-none absolute top-2.5 right-2.5 flex h-9 w-9 items-center justify-center rounded-lg text-lg font-extrabold text-white shadow-lg ring-2 ring-white/80 ${TIER_COLORS[tier]}`}
+                  className={`pointer-events-none absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full text-xs font-extrabold text-white shadow-lg ring-[1.5px] ring-white/80 ${TIER_COLORS[tier]}`}
                 >
                   {tier}
                 </span>
+              ) : (
+                selectable && (
+                  <button
+                    onClick={() => toggle(post.postId)}
+                    aria-pressed={checked}
+                    aria-label={
+                      checked
+                        ? `Remove "${post.title}" from selection`
+                        : `Add "${post.title}" to tier`
+                    }
+                    className={`absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full text-white shadow-md ring-[1.5px] ring-white/90 backdrop-blur-sm transition-all duration-300 ease-out cursor-pointer hover:scale-110 active:scale-85 ${
+                      checked ? 'rotate-180 bg-red-500' : 'bg-black/55'
+                    }`}
+                  >
+                    {/* Both icons stay mounted so they can cross-fade. */}
+                    <PlusIcon
+                      className={`absolute h-3.5 w-3.5 transition-all duration-300 ${
+                        checked ? 'scale-50 opacity-0' : 'scale-100 opacity-100'
+                      }`}
+                    />
+                    <MinusIcon
+                      className={`absolute h-3.5 w-3.5 transition-all duration-300 ${
+                        checked ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+                      }`}
+                    />
+                  </button>
+                )
               )}
             </li>
           );
@@ -197,22 +208,28 @@ export const PostPicker = ({
         </p>
       )}
 
-      {selected.length > 0 && (
-        <div className="sticky bottom-0 z-10 -mx-4 flex items-center gap-3 border-t border-line bg-surface px-4 py-3 backdrop-blur">
-          <button
-            onClick={() => setSelected([])}
-            className="text-sm font-semibold text-muted cursor-pointer hover:text-ink"
+      {/* Sits on top of the bottom nav (same height) while posts are picked. */}
+      {selected.length > 0 &&
+        navSlot &&
+        createPortal(
+          <div
+            className={`rise flex ${NAV_HEIGHT} items-center gap-3 border-t border-line bg-surface px-4 backdrop-blur`}
           >
-            Clear
-          </button>
-          <button
-            onClick={() => setImporting(true)}
-            className="flex-1 rounded-full bg-cta px-4 py-2.5 font-bold text-cta-ink shadow-md cursor-pointer hover:brightness-95 transition"
-          >
-            Add {selected.length} to tier →
-          </button>
-        </div>
-      )}
+            <button
+              onClick={() => setSelected([])}
+              className="text-sm font-semibold text-muted cursor-pointer hover:text-ink"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => setImporting(true)}
+              className="flex-1 rounded-full bg-cta px-4 py-2.5 font-bold text-cta-ink shadow-md cursor-pointer hover:brightness-95 transition"
+            >
+              Add {selected.length} to tier →
+            </button>
+          </div>,
+          navSlot
+        )}
 
       {importing && (
         <ImportWizard

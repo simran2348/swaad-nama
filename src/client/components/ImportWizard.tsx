@@ -38,7 +38,7 @@ const CoverPicker = ({
     <div className="flex flex-col gap-1.5">
       <Carousel
         images={images}
-        className="h-56 rounded-xl shadow-sm"
+        className="h-40 rounded-xl shadow-sm"
         onIndexChange={(i) => {
           const url = images[i];
           if (url) onPick(url);
@@ -151,6 +151,7 @@ export const ImportWizard = ({
       />
       <ScreenHeader
         title="Add to tier"
+        compact
         {...(items && items.length > 0
           ? { subtitle: `Post ${step + 1} of ${items.length}` }
           : {})}

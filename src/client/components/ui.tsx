@@ -51,16 +51,27 @@ export const ScreenHeader = ({
   subtitle,
   left,
   right,
+  compact = false,
 }: {
   title: string;
   subtitle?: string;
   left?: ReactNode;
   right?: ReactNode;
+  /** Slimmer bar, for full-screen flows that need the room. */
+  compact?: boolean;
 }) => (
-  <header className="flex items-center gap-2 border-b border-line bg-surface px-4 pt-4 pb-3 backdrop-blur">
+  <header
+    className={`flex items-center gap-2 border-b border-line bg-surface px-4 backdrop-blur ${
+      compact ? 'py-2' : 'pt-4 pb-3'
+    }`}
+  >
     {left}
     <div className="min-w-0 flex-1">
-      <h1 className="truncate text-xl font-extrabold text-ink">{title}</h1>
+      <h1
+        className={`truncate font-extrabold text-ink ${compact ? 'text-base' : 'text-xl'}`}
+      >
+        {title}
+      </h1>
       {subtitle && <p className="truncate text-xs text-muted">{subtitle}</p>}
     </div>
     {right}

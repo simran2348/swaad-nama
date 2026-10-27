@@ -5,7 +5,7 @@ import { EmptyState } from './ui';
 import { UserSearch } from './UserSearch';
 
 /**
- * Tab 1: your posts in this subreddit (tick to add them to the tier list),
+ * Tab 1: your posts in this subreddit (tap + to add them to the tier list),
  * or another user's posts when you search for them.
  */
 export const MyList = ({
@@ -33,7 +33,6 @@ export const MyList = ({
         <PostPicker
           // Fresh list (and selection) per user.
           key={user ?? ''}
-          subredditName={data?.subredditName ?? ''}
           foods={data?.foods ?? []}
           onAdded={onAdded}
           {...(user ? { username: user } : {})}

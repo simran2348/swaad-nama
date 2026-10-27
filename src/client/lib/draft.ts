@@ -12,6 +12,8 @@ export const emptyDraft = (): ReviewDraft => ({
   location: undefined,
   rating: 0,
   review: '',
+  budget: 0,
+  vibes: [],
 });
 
 /** Food category, place and rating are required; the rest is optional. */
@@ -22,12 +24,13 @@ export const isDraftComplete = (draft: ReviewDraft) =>
 
 /** Rate an existing post. */
 export const draftToRequest = (
-  { location, ...draft }: ReviewDraft,
+  { location, budget, ...draft }: ReviewDraft,
   importedPostId: string,
   coverImage?: string
 ): CreateReviewRequest => ({
   ...draft,
   ...(location ? { location } : {}),
+  ...(budget ? { budget } : {}),
   importedPostId,
   ...(coverImage ? { coverImage } : {}),
 });
@@ -39,10 +42,14 @@ export const draftToUpdate = ({
   place,
   rating,
   review,
+  budget,
+  vibes,
 }: ReviewDraft): UpdateReviewRequest => ({
   title,
   food,
   place,
   rating,
   review,
+  ...(budget ? { budget } : {}),
+  vibes,
 });

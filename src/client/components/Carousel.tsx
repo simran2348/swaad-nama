@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Photo } from './Photo';
 
 /**
  * Swipeable photos, one at a time, with dots instead of a scrollbar.
@@ -7,13 +8,11 @@ import { useRef, useState } from 'react';
 export const Carousel = ({
   images,
   className = '',
-  imageClassName = 'object-cover',
   onIndexChange,
 }: {
   images: string[];
   /** Size and shape of the frame, e.g. `h-52 rounded-xl`. */
   className?: string;
-  imageClassName?: string;
   onIndexChange?: (index: number) => void;
 }) => {
   const track = useRef<HTMLDivElement>(null);
@@ -42,11 +41,11 @@ export const Carousel = ({
         className="no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto"
       >
         {images.map((url, i) => (
-          <img
+          <Photo
             key={url}
             src={url}
             alt={`Photo ${i + 1} of ${images.length}`}
-            className={`h-full w-full shrink-0 snap-center ${imageClassName}`}
+            className="relative h-full w-full shrink-0 snap-center"
           />
         ))}
       </div>

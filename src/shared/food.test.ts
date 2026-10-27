@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  cleanVibes,
+  isValidBudget,
   isValidRating,
   normalizeName,
   ratingToStars,
@@ -44,4 +46,25 @@ test('cleanPostBody strips media markers and entities', () => {
     'Best biryani & raita'
   );
   assert.equal(cleanPostBody('a\n\n\n\n![gif](x)\nb'), 'a\n\nb');
+});
+
+test('isValidBudget accepts whole rupees in range', () => {
+  assert.equal(isValidBudget(100), true);
+  assert.equal(isValidBudget(5000), true);
+  assert.equal(isValidBudget(99), false);
+  assert.equal(isValidBudget(5001), false);
+  assert.equal(isValidBudget(150.5), false);
+});
+
+test('cleanVibes trims, de-duplicates and caps the list', () => {
+  assert.deepEqual(
+    cleanVibes(['  Hidden   gem ', 'hidden gem', '', 3, 'Fun']),
+    ['Hidden gem', 'Fun']
+  );
+  assert.equal(
+    cleanVibes(Array.from({ length: 15 }, (_, i) => `v${i}`)).length,
+    10
+  );
+  assert.deepEqual(cleanVibes('nope'), []);
+  assert.equal(cleanVibes(['x'.repeat(40)])[0]?.length, 24);
 });

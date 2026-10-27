@@ -1,6 +1,8 @@
 import type { PlaceLocation } from '../../shared/api';
+import { BudgetInput } from './BudgetInput';
 import { PlacePicker } from './PlacePicker';
 import { RatingInput } from './RatingInput';
+import { VibePicker } from './VibePicker';
 
 export type ReviewDraft = {
   title: string;
@@ -9,6 +11,9 @@ export type ReviewDraft = {
   location: PlaceLocation | undefined;
   rating: number;
   review: string;
+  /** Per person, in rupees; 0 = not given. */
+  budget: number;
+  vibes: string[];
 };
 
 const inputClass =
@@ -26,7 +31,7 @@ export const ReviewFields = ({
   onChange: (patch: Partial<ReviewDraft>) => void;
   /** Existing food categories, offered as quick picks. */
   foods: string[];
-  /** Only the rating part (food, café, rating); title and text come from the post. */
+  /** Only the rating part (food, café, rating, budget, vibes); title and text come from the post. */
   ratingOnly?: boolean;
 }) => {
   const suggestions = foods
@@ -91,6 +96,28 @@ export const ReviewFields = ({
         <RatingInput
           value={draft.rating}
           onChange={(rating) => onChange({ rating })}
+        />
+      </div>
+
+      <div className={labelClass}>
+        <span>
+          Budget{' '}
+          <span className="font-normal text-muted">per person (optional)</span>
+        </span>
+        <BudgetInput
+          value={draft.budget}
+          onChange={(budget) => onChange({ budget })}
+        />
+      </div>
+
+      <div className={labelClass}>
+        <span>
+          Vibes <span className="font-normal text-muted">(optional)</span>
+        </span>
+        <VibePicker
+          value={draft.vibes}
+          inputClass={inputClass}
+          onChange={(vibes) => onChange({ vibes })}
         />
       </div>
 

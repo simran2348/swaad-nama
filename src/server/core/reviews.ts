@@ -1,6 +1,6 @@
 import { redis } from '@devvit/web/server';
 import type { FoodCategory, FoodReview, PlaceLocation } from '../../shared/api';
-import { normalizeName } from '../../shared/food';
+import { cleanVibes, isValidBudget, normalizeName } from '../../shared/food';
 
 const keys = {
   review: (id: string) => `review:${id}`,
@@ -40,6 +40,7 @@ const parseReview = (data: Record<string, string>): FoodReview | null => {
   const rating = Number(data.rating ?? 0);
   const createdAt = Number(data.createdAt ?? 0);
   const location = parseLocation(parseJson(data.location));
+  const budget = Number(data.budget);
   return {
     id: data.id,
     username: data.username,
@@ -50,6 +51,8 @@ const parseReview = (data: Record<string, string>): FoodReview | null => {
     // Reviews saved before the 10-point scale were rated out of 5.
     rating: data.scale === '10' ? rating : rating * 2,
     review: data.review ?? '',
+    ...(isValidBudget(budget) ? { budget } : {}),
+    vibes: cleanVibes(parseJson(data.vibes)),
     images: parseImages(parseJson(data.images)),
     createdAt,
     postedAt: Number(data.postedAt ?? createdAt),
@@ -76,6 +79,8 @@ export const saveReview = async (
     rating: String(review.rating),
     scale: '10',
     review: review.review,
+    ...(review.budget ? { budget: String(review.budget) } : {}),
+    vibes: JSON.stringify(review.vibes),
     images: JSON.stringify(review.images),
     createdAt: String(createdAt),
     postedAt: String(review.postedAt),
@@ -108,7 +113,7 @@ export const getReview = async (id: string): Promise<FoodReview | null> =>
 /** Fields a user can change on their own rating. */
 export type ReviewEdit = Pick<
   FoodReview,
-  'title' | 'food' | 'place' | 'rating' | 'review'
+  'title' | 'food' | 'place' | 'rating' | 'review' | 'budget' | 'vibes'
 >;
 
 export const updateReview = async (
@@ -122,12 +127,18 @@ export const updateReview = async (
     rating: String(edit.rating),
     scale: '10',
     review: edit.review,
+    ...(edit.budget ? { budget: String(edit.budget) } : {}),
+    vibes: JSON.stringify(edit.vibes),
   });
+  if (!edit.budget) await redis.hDel(keys.review(review.id), ['budget']);
   if (normalizeName(edit.food) !== normalizeName(review.food)) {
     await countFood(review.food, -1);
     await countFood(edit.food, 1);
   }
-  return { ...review, ...edit };
+  // Spread without `budget`, then add the edited one back only if set.
+  const { budget: _old, ...rest } = review;
+  const { budget, ...fields } = edit;
+  return { ...rest, ...fields, ...(budget ? { budget } : {}) };
 };
 
 /** Removes a rating (the Reddit post it came from is left alone). */

@@ -108,7 +108,7 @@ export const getPostDetail = async (
 };
 
 /** Posts returned per "load more". */
-const MY_POSTS_PAGE_SIZE = 5;
+const MY_POSTS_PAGE_SIZE = 10;
 /** Most of the user's history (all subreddits) scanned per request. */
 const MY_POSTS_SCAN_LIMIT = 200;
 

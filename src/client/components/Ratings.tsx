@@ -12,6 +12,7 @@ import { RankedList, UserReviews } from './reviews';
 import { EMPTY_RATINGS_IMAGE, useImageLoaded } from '../lib/art';
 import { EmptyMascot } from './EmptyMascot';
 import { BackButton, EmptyState, LoadingState, ScreenHeader } from './ui';
+import { Photo } from './Photo';
 import { UserSearch } from './UserSearch';
 
 type Result =
@@ -30,14 +31,10 @@ const CategoryCard = ({
   <button
     onClick={onOpen}
     style={riseDelay(index)}
-    className="rise relative aspect-[4/5] overflow-hidden rounded-3xl bg-cta/15 text-left shadow-md cursor-pointer transition hover:-translate-y-0.5 hover:shadow-lg"
+    className="rise relative isolate aspect-[4/5] transform-gpu overflow-hidden rounded-3xl bg-cta/15 text-left shadow-md cursor-pointer transition hover:-translate-y-0.5 hover:shadow-lg"
   >
     {category.top?.image ? (
-      <img
-        src={category.top.image}
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover"
-      />
+      <Photo src={category.top.image} />
     ) : (
       <span className="absolute inset-0 flex items-center justify-center text-5xl">
         🍽️
