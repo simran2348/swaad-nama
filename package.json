@@ -30,8 +30,8 @@
     "devvit": "0.15.0",
     "hono": "4.13.13",
     "leaflet": "^1.9.4",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
