@@ -30,6 +30,10 @@ export const isTrackEvent = (value: unknown): value is TrackEvent =>
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** How many days ago this week's Monday was (0 on a Monday), India time. */
+export const daysSinceMonday = (now: number): number =>
+  (new Date(`${dayKey(now)}T00:00:00Z`).getUTCDay() + 6) % 7;
+
 /** "2026-10-28" for the India-time day `daysAgo` days before `now`. */
 export const dayKey = (now: number, daysAgo = 0): string =>
   new Date(now + IST_OFFSET_MS - daysAgo * DAY_MS).toISOString().slice(0, 10);

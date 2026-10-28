@@ -122,8 +122,9 @@ export const deleteReview = (id: string) =>
     method: 'DELETE',
   });
 
-export const fetchAdminStats = (days: 7 | 30) =>
-  request<AdminStatsResponse>(`/api/admin/stats?days=${days}`);
+/** Stats for this week (1) or the last 4 weeks (4), starting Mondays. */
+export const fetchAdminStats = (weeks: 1 | 4) =>
+  request<AdminStatsResponse>(`/api/admin/stats?weeks=${weeks}`);
 
 export const adminResetStats = () =>
   request<{ status: 'ok' }>('/api/admin/reset-stats', { method: 'POST' });

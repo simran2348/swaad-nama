@@ -672,9 +672,9 @@ api.get('/admin/stats', async (c) => {
       403
     );
   }
-  const days = Number(c.req.query('days')) === 30 ? 30 : 7;
+  const weeks = Number(c.req.query('weeks')) === 4 ? 4 : 1;
   try {
-    return c.json<AdminStatsResponse>(await getAdminStats(days));
+    return c.json<AdminStatsResponse>(await getAdminStats(weeks));
   } catch (error) {
     return failure(c, error, 'admin stats');
   }

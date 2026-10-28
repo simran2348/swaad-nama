@@ -8,7 +8,17 @@ import { Username } from './Username';
 type Result =
   { ok: true; data: AdminStatsResponse } | { ok: false; error: string };
 
-type Range = 7 | 30;
+/** Weeks shown, each starting on Monday. */
+type Range = 1 | 4;
+
+const RANGES: { id: Range; label: string }[] = [
+  { id: 1, label: 'This week' },
+  { id: 4, label: '4 weeks' },
+];
+
+/** "this week" / "the last 4 weeks", for sentences. */
+const rangeText = (range: Range) =>
+  range === 1 ? 'this week' : 'the last 4 weeks';
 type Metric = 'activeUsers' | 'ratings' | 'newUsers';
 
 const METRICS: { id: Metric; label: string }[] = [
@@ -61,6 +71,21 @@ const Toggle = <T extends string | number>({
   </div>
 );
 
+/** Rounded box holding a block of stats (titles stay outside). */
+const Card = ({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) => (
+  <div
+    className={`rounded-2xl border border-line bg-surface p-4 shadow-sm backdrop-blur ${className}`}
+  >
+    {children}
+  </div>
+);
+
 const Heading = ({ children }: { children: string }) => (
   <h2 className="px-1 text-base font-extrabold text-ink">{children}</h2>
 );
@@ -98,7 +123,10 @@ const BarRow = ({
   </li>
 );
 
-/** Bars per day for one metric; values shown above bars on the 7-day view. */
+/**
+ * Bars per day for one metric, Monday first. Days later this week show as
+ * empty outlines. Values sit above the bars on the one-week view.
+ */
 const DayChart = ({
   days,
   metric,
@@ -108,47 +136,63 @@ const DayChart = ({
 }) => {
   const max = Math.max(1, ...days.map((d) => d[metric]));
   const long = days.length > 7;
+  const todayIndex = days.findLastIndex((d) => !d.upcoming);
   return (
     <div>
       <ol
         className={`flex h-36 items-end ${long ? 'gap-0.5' : 'gap-2'}`}
         aria-label="Daily counts"
       >
-        {days.map((day) => (
+        {days.map((day, i) => (
           <li
             key={day.date}
             className="flex h-full flex-1 flex-col items-center justify-end gap-1"
-            title={`${formatDay(day.date, true)}: ${day[metric]}`}
+            title={
+              day.upcoming
+                ? `${formatDay(day.date, true)}: not yet`
+                : `${formatDay(day.date, true)}: ${day[metric]}`
+            }
           >
-            {!long && (
+            {!long && !day.upcoming && (
               <span className="text-[11px] font-bold text-ink tabular-nums">
                 {day[metric]}
               </span>
             )}
-            <span
-              className="w-full rounded-t-md bg-cta transition-[height] duration-500"
-              style={{
-                height: `${(day[metric] / max) * 100}%`,
-                minHeight: day[metric] > 0 ? 3 : 1,
-                opacity: day[metric] > 0 ? 1 : 0.25,
-              }}
-            />
+            {day.upcoming ? (
+              <span className="h-2 w-full rounded-t-md border border-b-0 border-dashed border-line" />
+            ) : (
+              <span
+                className={`w-full rounded-t-md bg-cta transition-[height] duration-500 ${
+                  i === todayIndex ? '' : 'opacity-85'
+                }`}
+                style={{
+                  height: `${(day[metric] / max) * 100}%`,
+                  minHeight: day[metric] > 0 ? 3 : 1,
+                  ...(day[metric] > 0 ? {} : { opacity: 0.25 }),
+                }}
+              />
+            )}
           </li>
         ))}
       </ol>
-      <div className="mt-1.5 flex justify-between text-[10px] font-semibold text-muted">
-        {long ? (
-          <>
-            <span>{formatDay(days[0]?.date ?? '', true)}</span>
-            <span>Today</span>
-          </>
-        ) : (
-          days.map((day, i) => (
-            <span key={day.date} className="flex-1 text-center">
-              {i === days.length - 1 ? 'Today' : formatDay(day.date, false)}
-            </span>
-          ))
-        )}
+      <div className="mt-1.5 flex text-[10px] font-semibold text-muted">
+        {long
+          ? // One label per week: the date of its Monday.
+            days
+              .filter((_, i) => i % 7 === 0)
+              .map((day) => (
+                <span key={day.date} className="flex-1 px-0.5">
+                  {formatDay(day.date, true)}
+                </span>
+              ))
+          : days.map((day, i) => (
+              <span
+                key={day.date}
+                className={`flex-1 text-center ${i === todayIndex ? 'font-extrabold text-ink' : ''}`}
+              >
+                {i === todayIndex ? 'Today' : formatDay(day.date, false)}
+              </span>
+            ))}
       </div>
     </div>
   );
@@ -156,7 +200,7 @@ const DayChart = ({
 
 /** Admin analytics: totals, daily activity, top raters, usage, add flow. */
 export const AdminStats = ({ refreshKey }: { refreshKey: number }) => {
-  const [range, setRange] = useState<Range>(7);
+  const [range, setRange] = useState<Range>(1);
   const [metric, setMetric] = useState<Metric>('activeUsers');
   const [result, setResult] = useState<{ for: Range } & Result>();
 
@@ -179,13 +223,10 @@ export const AdminStats = ({ refreshKey }: { refreshKey: number }) => {
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between gap-3 px-1">
         <h2 className="text-lg font-extrabold text-ink">Overview</h2>
-        <div className="w-32">
+        <div className="w-44">
           <Toggle
             label="Time range"
-            options={[
-              { id: 7, label: '7 days' },
-              { id: 30, label: '30 days' },
-            ]}
+            options={RANGES}
             value={range}
             onChange={setRange}
           />
@@ -234,94 +275,105 @@ const Overview = ({
   return (
     <>
       {/* Totals, all time. */}
-      <div className="-mt-4 grid grid-cols-2 gap-x-4 gap-y-5 px-1">
+      <div className="-mt-4 grid grid-cols-2 gap-3">
         {tiles.map((t) => (
-          <div key={t.label}>
+          <Card key={t.label} className="flex flex-col gap-1">
             <p className="text-3xl leading-none font-extrabold text-ink tabular-nums">
               {t.value.toLocaleString('en-IN')}
             </p>
-            <p className="mt-1 text-xs font-semibold text-muted">{t.label}</p>
-          </div>
+            <p className="text-xs font-semibold text-muted">{t.label}</p>
+          </Card>
         ))}
       </div>
 
       <section className="flex flex-col gap-3">
         <Heading>Daily activity</Heading>
-        <Toggle
-          label="Metric"
-          options={METRICS}
-          value={metric}
-          onChange={onMetric}
-        />
-        <DayChart days={days} metric={metric} />
+        <Card className="flex flex-col gap-4">
+          <Toggle
+            label="Metric"
+            options={METRICS}
+            value={metric}
+            onChange={onMetric}
+          />
+          <DayChart days={days} metric={metric} />
+        </Card>
         <p className="px-1 text-xs text-muted">
-          Last {range} days: {sum('ratings')} new ratings, {sum('newUsers')} new
-          users, {data.edits} edits and {data.deletes} deletions.
+          {range === 1 ? 'This week' : 'Last 4 weeks'} (from Monday):{' '}
+          {sum('ratings')} new ratings, {sum('newUsers')} new users,{' '}
+          {data.edits} edits and {data.deletes} deletions.
         </p>
       </section>
 
       <section className="flex flex-col gap-3">
         <Heading>Add to tier flow</Heading>
         <p className="-mt-1 px-1 text-xs text-muted">
-          Times each step happened in the last {range} days, with the share of
-          step 1 that got that far.
+          Times each step happened {rangeText(range)}, with the share of step 1
+          that got that far.
         </p>
-        <ol className="flex flex-col gap-3">
-          {funnel.map((step, i) => (
-            <BarRow
-              key={step.event}
-              name={`${i + 1}. ${label(FUNNEL_EVENTS, step.event)}`}
-              count={step.count}
-              max={firstStep?.count ?? 0}
-              {...(i > 0
-                ? { note: pct(step.count, firstStep?.count ?? 0) }
-                : {})}
-            />
-          ))}
-        </ol>
+        <Card>
+          <ol className="flex flex-col gap-3">
+            {funnel.map((step, i) => (
+              <BarRow
+                key={step.event}
+                name={`${i + 1}. ${label(FUNNEL_EVENTS, step.event)}`}
+                count={step.count}
+                max={firstStep?.count ?? 0}
+                {...(i > 0
+                  ? { note: pct(step.count, firstStep?.count ?? 0) }
+                  : {})}
+              />
+            ))}
+          </ol>
+        </Card>
       </section>
 
       <section className="flex flex-col gap-3">
         <Heading>Feature usage</Heading>
         <p className="-mt-1 px-1 text-xs text-muted">
-          Taps, last {range} days.
+          Taps {rangeText(range)}.
         </p>
-        <ul className="flex flex-col gap-3">
-          {[...features]
-            .sort((a, b) => b.count - a.count)
-            .map((f) => (
-              <BarRow
-                key={f.event}
-                name={label(FEATURE_EVENTS, f.event)}
-                count={f.count}
-                max={featureMax}
-              />
-            ))}
-        </ul>
+        <Card>
+          <ul className="flex flex-col gap-3">
+            {[...features]
+              .sort((a, b) => b.count - a.count)
+              .map((f) => (
+                <BarRow
+                  key={f.event}
+                  name={label(FEATURE_EVENTS, f.event)}
+                  count={f.count}
+                  max={featureMax}
+                />
+              ))}
+          </ul>
+        </Card>
       </section>
 
       <section className="flex flex-col gap-3">
         <Heading>Top raters</Heading>
         {topRaters.length === 0 ? (
-          <p className="px-1 text-sm text-muted">No ratings counted yet.</p>
+          <Card>
+            <p className="text-sm text-muted">No ratings counted yet.</p>
+          </Card>
         ) : (
-          <ol className="flex flex-col gap-3">
-            {topRaters.map((r, i) => (
-              <BarRow
-                key={r.username}
-                name={
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 text-right text-xs font-extrabold text-muted">
-                      {i + 1}
+          <Card>
+            <ol className="flex flex-col gap-3">
+              {topRaters.map((r, i) => (
+                <BarRow
+                  key={r.username}
+                  name={
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 text-right text-xs font-extrabold text-muted">
+                        {i + 1}
+                      </span>
+                      <Username name={r.username} />
                     </span>
-                    <Username name={r.username} />
-                  </span>
-                }
-                count={r.count}
-                max={raterMax}
-              />
-            ))}
-          </ol>
+                  }
+                  count={r.count}
+                  max={raterMax}
+                />
+              ))}
+            </ol>
+          </Card>
         )}
       </section>
 

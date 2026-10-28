@@ -2,6 +2,7 @@ import { redis } from '@devvit/web/server';
 import type { AdminStatsResponse } from '../../shared/api';
 import {
   dayKey,
+  daysSinceMonday,
   FEATURE_EVENTS,
   FUNNEL_EVENTS,
   type FeatureEvent,
@@ -110,13 +111,19 @@ export const resetStats = async (): Promise<{ cleared: number }> => {
 
 const num = (value: string | undefined) => Number(value ?? 0) || 0;
 
-/** Everything the Admin overview shows, for the last `days` days. */
-export const getAdminStats = async (days = 7): Promise<AdminStatsResponse> => {
+/**
+ * Everything the Admin overview shows, for whole weeks starting on Monday:
+ * this week (`weeks` = 1) or this week and the 3 before it (`weeks` = 4).
+ * Days later this week are included, empty, so the chart ends on Sunday.
+ */
+export const getAdminStats = async (
+  weeks: 1 | 4 = 1
+): Promise<AdminStatsResponse> => {
   const now = Date.now();
-  // Oldest first, ending today.
-  const dayKeys = Array.from({ length: days }, (_, i) =>
-    dayKey(now, days - 1 - i)
-  );
+  const firstDayAgo = daysSinceMonday(now) + 7 * (weeks - 1);
+  // Oldest first: Monday … Sunday of the last week.
+  const daysAgo = Array.from({ length: 7 * weeks }, (_, i) => firstDayAgo - i);
+  const dayKeys = daysAgo.map((ago) => dayKey(now, ago));
   const [counts, active, foods, users, raterCount, topRaters] =
     await Promise.all([
       Promise.all(dayKeys.map((day) => redis.hGetAll(keys.day(day)))),
@@ -139,6 +146,7 @@ export const getAdminStats = async (days = 7): Promise<AdminStatsResponse> => {
     },
     days: dayKeys.map((date, i) => ({
       date,
+      upcoming: (daysAgo[i] ?? 0) < 0,
       activeUsers: active[i] ?? 0,
       newUsers: num(counts[i]?.new_user),
       ratings: num(counts[i]?.rating_added),

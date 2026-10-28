@@ -261,17 +261,19 @@ export type AdminStatsResponse = {
     /** People who've opened the app since tracking began. */
     users: number;
   };
-  /** Oldest first, ending today (India time). */
+  /** Whole weeks, Monday to Sunday, oldest first (India time). */
   days: {
     date: string;
+    /** Later this week: no data yet. */
+    upcoming: boolean;
     activeUsers: number;
     newUsers: number;
     ratings: number;
   }[];
   topRaters: { username: string; count: number }[];
-  /** Totals over the same days, by event name (see shared/stats). */
+  /** Totals over the same weeks, by event name (see shared/stats). */
   features: { event: string; count: number }[];
-  /** Add-to-tier steps in order, over the same days. */
+  /** Add-to-tier steps in order, over the same weeks. */
   funnel: { event: string; count: number }[];
   edits: number;
   deletes: number;
