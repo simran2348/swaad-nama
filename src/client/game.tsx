@@ -115,7 +115,10 @@ export const App = () => {
               }}
             />
           ) : tab === 'ratings' ? (
-            <Ratings foods={data?.foods ?? []} />
+            <Ratings
+              foods={data?.foods ?? []}
+              username={data?.username ?? null}
+            />
           ) : tab === 'map' ? (
             <MapView data={data} />
           ) : tab === 'admin' && isAdmin(data?.username) ? (

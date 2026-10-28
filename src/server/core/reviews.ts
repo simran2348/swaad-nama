@@ -1,5 +1,10 @@
 import { redis } from '@devvit/web/server';
-import type { FoodCategory, FoodReview, PlaceLocation } from '../../shared/api';
+import type {
+  FoodCategory,
+  FoodReview,
+  PlaceLocation,
+  TopRatedFood,
+} from '../../shared/api';
 import { cleanVibes, isValidBudget, normalizeName } from '../../shared/food';
 
 const keys = {
@@ -7,7 +12,21 @@ const keys = {
   userList: (username: string) => `user:${username}:reviews`,
   foods: () => 'foods',
   foodNames: () => 'foods:names',
+  /** Every rating in a food category (all users), scored by its rating. */
+  foodReviews: (food: string) => `food:${normalizeName(food)}:reviews`,
+  /** Set once a user's older ratings have been added to the food index. */
+  indexed: (username: string) => `user:${username}:indexed:v1`,
 };
+
+/** Adds (or re-scores) a rating in its food category's community index. */
+const indexReview = (review: Pick<FoodReview, 'id' | 'food' | 'rating'>) =>
+  redis.zAdd(keys.foodReviews(review.food), {
+    member: review.id,
+    score: review.rating,
+  });
+
+const unindexReview = (review: Pick<FoodReview, 'id' | 'food'>) =>
+  redis.zRem(keys.foodReviews(review.food), [review.id]);
 
 const parseJson = (value: string | undefined): unknown => {
   if (!value) return undefined;
@@ -93,6 +112,7 @@ export const saveReview = async (
 
   // Track foods by popularity and keep the first-seen display name.
   await countFood(review.food, 1);
+  await indexReview(review);
 
   return review;
 };
@@ -146,7 +166,9 @@ export const updateReview = async (
   if (normalizeName(edit.food) !== normalizeName(review.food)) {
     await countFood(review.food, -1);
     await countFood(edit.food, 1);
+    await unindexReview(review);
   }
+  await indexReview({ id: review.id, food: edit.food, rating: edit.rating });
   // Spread without the optional fields, then add the edited ones back if set.
   const { budget: _oldBudget, location: _oldLocation, ...rest } = review;
   const { budget, location, ...fields } = edit;
@@ -163,6 +185,7 @@ export const deleteReview = async (review: FoodReview) => {
   await redis.del(keys.review(review.id));
   await redis.zRem(keys.userList(review.username), [review.id]);
   await countFood(review.food, -1);
+  await unindexReview(review);
 };
 
 export const getUserReviews = async (
@@ -211,8 +234,94 @@ export const getUserCategories = (reviews: FoodReview[]): FoodCategory[] => {
       return {
         food: best?.food ?? '',
         count: group.length,
+        average:
+          Math.round(
+            (group.reduce((sum, r) => sum + r.rating, 0) / group.length) * 10
+          ) / 10,
         top: best ? { place: best.place, rating: best.rating, image } : null,
       };
     })
     .sort((a, b) => b.count - a.count);
+};
+
+/**
+ * Adds a user's older ratings (saved before the community index existed) to
+ * it, once. Run when they open the app, so the index fills in over time.
+ */
+export const indexUserReviews = async (
+  username: string,
+  reviews: FoodReview[]
+) => {
+  if (await redis.get(keys.indexed(username))) return;
+  await Promise.all(reviews.map(indexReview));
+  await redis.set(keys.indexed(username), '1');
+};
+
+/** Food categories with the best average rating across everyone. */
+export const getTopRatedFoods = async (limit = 10): Promise<TopRatedFood[]> => {
+  // The most-rated foods are the candidates; ranked by average below.
+  const foods = await redis.zRange(keys.foods(), 0, 49, {
+    by: 'rank',
+    reverse: true,
+  });
+  if (foods.length === 0) return [];
+  const keysList = foods.map(({ member }) => member);
+  const [names, ratings] = await Promise.all([
+    redis.hMGet(keys.foodNames(), keysList),
+    Promise.all(
+      keysList.map((food) =>
+        redis.zRange(keys.foodReviews(food), 0, -1, {
+          by: 'rank',
+          reverse: true,
+        })
+      )
+    ),
+  ]);
+  const ranked = keysList
+    .map((food, i) => {
+      const scores = ratings[i] ?? [];
+      const total = scores.reduce((sum, { score }) => sum + score, 0);
+      return {
+        food: names[i] ?? food,
+        count: scores.length,
+        average: scores.length ? total / scores.length : 0,
+        bestId: scores[0]?.member,
+      };
+    })
+    .filter((f) => f.count > 0)
+    .sort((a, b) => b.average - a.average || b.count - a.count)
+    .slice(0, limit);
+  // Each card shows the photo from that food's best rating.
+  return Promise.all(
+    ranked.map(async ({ bestId, ...food }) => {
+      const images = bestId
+        ? parseImages(
+            parseJson(await redis.hGet(keys.review(bestId), 'images'))
+          )
+        : [];
+      return {
+        ...food,
+        average: Math.round(food.average * 10) / 10,
+        image: images[0] ?? null,
+      };
+    })
+  );
+};
+
+/** Everyone's ratings in one food category, best first (up to `limit`). */
+export const getFoodRatings = async (
+  food: string,
+  limit = 50
+): Promise<FoodReview[]> => {
+  const ids = await redis.zRange(keys.foodReviews(food), 0, limit - 1, {
+    by: 'rank',
+    reverse: true,
+  });
+  const reviews = await Promise.all(
+    ids.map(({ member }) => redis.hGetAll(keys.review(member)))
+  );
+  return reviews.flatMap((data) => {
+    const review = parseReview(data);
+    return review ? [review] : [];
+  });
 };

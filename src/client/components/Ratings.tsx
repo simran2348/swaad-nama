@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type {
   CategoriesResponse,
   FoodCategory,
@@ -9,7 +9,7 @@ import { fetchCategories } from '../lib/api';
 import { riseDelay } from '../lib/motion';
 import { forgetMyPosts } from '../lib/postCache';
 import { HeroBackdrop, PodiumArt } from './decor';
-import { PlateIcon } from './icons';
+import { PlateIcon, StarIcon } from './icons';
 import { ReviewViewer } from './ReviewViewer';
 import { RankedList, UserReviews } from './reviews';
 import {
@@ -19,8 +19,9 @@ import {
   useImagesLoaded,
 } from '../lib/art';
 import { EmptyMascot } from './EmptyMascot';
-import { BackButton, EmptyState, LoadingState, ScreenHeader } from './ui';
-import { Photo } from './Photo';
+import { BackButton, EmptyState, LoadingState } from './ui';
+import { TopRatedRow } from './TopRatedRow';
+import { FoodRaters } from './FoodRaters';
 import { UserSearch } from './UserSearch';
 
 type Result =
@@ -39,20 +40,35 @@ const CategoryCard = ({
   <button
     onClick={onOpen}
     style={riseDelay(index)}
-    className="rise relative isolate aspect-[4/5] transform-gpu overflow-hidden rounded-3xl bg-cta/15 text-left shadow-md cursor-pointer transition hover:-translate-y-0.5 hover:shadow-lg"
+    aria-label={`${category.food}: average ${category.average} out of 10 from ${category.count} ratings`}
+    className="rise relative isolate aspect-[4/5] transform-gpu overflow-hidden rounded-2xl bg-cta/15 text-left shadow-md cursor-pointer transition hover:-translate-y-0.5 hover:shadow-lg"
   >
     {category.top?.image ? (
-      <Photo src={category.top.image} />
+      <img
+        src={category.top.image}
+        alt=""
+        loading="lazy"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
     ) : (
-      <span className="absolute inset-0 flex items-center justify-center text-cta">
-        <PlateIcon className="h-14 w-14" />
+      <span className="absolute inset-0 flex items-center justify-center pb-10 text-cta">
+        <PlateIcon className="h-12 w-12" />
       </span>
     )}
-    {/* Light shade so the glass text stays readable on bright photos. */}
-    <span className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/35 to-transparent" />
-    <span className="glass absolute inset-x-2 bottom-2 rounded-2xl px-3 py-2.5">
-      <span className="line-clamp-2 text-lg font-extrabold leading-tight text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.35)]">
+    {/* Shade so the text stays readable on bright photos. */}
+    <span className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/75 to-transparent" />
+    <span className="absolute inset-x-0 bottom-0 flex flex-col gap-1 p-2.5 text-white">
+      <span className="line-clamp-2 text-sm leading-tight font-extrabold [text-shadow:0_1px_2px_rgb(0_0_0/0.5)]">
         {category.food}
+      </span>
+      <span className="flex items-center gap-1.5 text-[11px] font-bold">
+        <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 backdrop-blur-sm">
+          <StarIcon className="h-3 w-3 text-amber-300" />
+          {category.average.toFixed(1)}
+        </span>
+        <span className="opacity-80">
+          {category.count} {category.count === 1 ? 'rating' : 'ratings'}
+        </span>
       </span>
     </span>
   </button>
@@ -113,13 +129,63 @@ const UserCategoryRanking = ({
   );
 };
 
+/** The podium hero and title over a ranking; waits for the hero's images. */
+const RankingScreen = ({
+  title,
+  subtitle,
+  artReady,
+  onBack,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  /** The podium and medal images have loaded. */
+  artReady: boolean;
+  onBack: () => void;
+  children: ReactNode;
+}) => (
+  <div className="relative isolate flex h-full min-h-0 flex-1 flex-col">
+    <HeroBackdrop />
+    {/* Hero: the title sits on the page background above the podium,
+        with no separate header bar, to leave room for the list. */}
+    <section className="shrink-0">
+      <div className="flex items-start gap-1.5 px-3 pt-3">
+        <BackButton onClick={onBack} />
+        <div className="min-w-0 pt-0.5">
+          <h1 className="truncate text-xl leading-tight font-extrabold text-ink">
+            {title}
+          </h1>
+          <p className="truncate text-sm text-muted">{subtitle}</p>
+        </div>
+      </div>
+      {artReady && (
+        <PodiumArt className="rise mx-auto w-[calc(100%-2rem)] max-w-sm" />
+      )}
+    </section>
+    <main className="scroll-area flex flex-1 flex-col gap-3 px-4 mt-3 pb-6">
+      {/* Wait for the podium and medals so the screen appears complete. */}
+      {artReady ? children : <LoadingState />}
+    </main>
+  </div>
+);
+
 /**
- * Tab 2: your food categories (each with your top-rated place's photo), or
- * a user's you search for. Tap a category to see its ranking. Nobody else's
- * ratings show unless you search for them.
+ * Tab 2: a "Top rated" row of the best food categories across everyone,
+ * then your food categories (each with your top-rated place's photo), or a
+ * user's you search for. Tap a category to see its ranking.
  */
-export const Ratings = ({ foods }: { foods: string[] }) => {
+export const Ratings = ({
+  foods,
+  username,
+}: {
+  foods: string[];
+  /** The viewer, so their own ratings stay editable from anywhere. */
+  username: string | null;
+}) => {
   const [user, setUser] = useState<string | null>(null);
+  // Top rated: a food's community ranking, then one person's tier list.
+  const [community, setCommunity] = useState<string | null>(null);
+  const [communityUser, setCommunityUser] = useState<string | null>(null);
   // Bumped after an edit/delete to reload categories and rankings.
   const [version, setVersion] = useState(0);
   const [category, setCategory] = useState<string | null>(null);
@@ -147,57 +213,72 @@ export const Ratings = ({ foods }: { foods: string[] }) => {
   const isOwn = user === null;
   const whose = isOwn ? 'Your' : `u/${owner ?? user}'s`;
 
+  const onRatingChanged = () => {
+    forgetMyPosts();
+    setVersion((v) => v + 1);
+  };
+
+  if (community && communityUser) {
+    const mine = communityUser.toLowerCase() === (username ?? '').toLowerCase();
+    return (
+      <RankingScreen
+        title={community}
+        // From everyone's list, always named (even for you); "Your
+        // ratings" is for opening one of your own categories.
+        subtitle={`u/${communityUser}'s ratings`}
+        artReady={rankingArtReady}
+        onBack={() => setCommunityUser(null)}
+      >
+        <UserCategoryRanking
+          username={communityUser}
+          food={community}
+          editable={mine}
+          foods={foods}
+          refreshKey={version}
+          onChanged={onRatingChanged}
+        />
+      </RankingScreen>
+    );
+  }
+
+  if (community) {
+    return (
+      <FoodRaters
+        food={community}
+        refreshKey={version}
+        onBack={() => setCommunity(null)}
+        onOpenUser={setCommunityUser}
+      />
+    );
+  }
+
   if (category) {
     return (
-      <div className="relative isolate flex h-full min-h-0 flex-1 flex-col">
-        <HeroBackdrop />
-        {/* Hero: the title sits on the page background above the podium,
-            with no separate header bar, to leave room for the list. */}
-        <section className="shrink-0">
-          <div className="flex items-start gap-1.5 px-3 pt-3">
-            <BackButton onClick={() => setCategory(null)} />
-            <div className="min-w-0 pt-0.5">
-              <h1 className="truncate text-xl leading-tight font-extrabold text-ink">
-                {category}
-              </h1>
-              <p className="truncate text-sm text-muted">{whose} ratings</p>
-            </div>
-          </div>
-          {rankingArtReady && (
-            <PodiumArt className="rise mx-auto -mt-3 w-[calc(100%-2rem)] max-w-sm" />
-          )}
-        </section>
-        <main className="scroll-area flex flex-1 flex-col gap-3 px-4 pt-3 pb-6">
-          {!rankingArtReady ? (
-            // Wait for the podium and medals so the screen appears complete.
-            <LoadingState />
-          ) : (
-            owner && (
-              <UserCategoryRanking
-                username={owner}
-                food={category}
-                editable={isOwn}
-                foods={foods}
-                refreshKey={version}
-                onChanged={() => {
-                  forgetMyPosts();
-                  setVersion((v) => v + 1);
-                }}
-              />
-            )
-          )}
-        </main>
-      </div>
+      <RankingScreen
+        title={category}
+        subtitle={`${whose} ratings`}
+        artReady={rankingArtReady}
+        onBack={() => setCategory(null)}
+      >
+        {owner && (
+          <UserCategoryRanking
+            username={owner}
+            food={category}
+            editable={isOwn}
+            foods={foods}
+            refreshKey={version}
+            onChanged={onRatingChanged}
+          />
+        )}
+      </RankingScreen>
     );
   }
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <ScreenHeader
-        title="Ratings"
-        subtitle={`${whose} top spots by category`}
-      />
-      <main className="scroll-area flex flex-1 flex-col gap-3 px-4 pt-3 pb-6">
+      <main className="scroll-area flex flex-1 flex-col gap-3 px-4 pt-4 pb-6">
+        {/* Same for everyone, so hidden while viewing someone's ratings. */}
+        {isOwn && <TopRatedRow refreshKey={version} onOpen={setCommunity} />}
         <UserSearch
           user={isOwn ? null : (owner ?? user)}
           onSearch={(name) => {
@@ -225,16 +306,21 @@ export const Ratings = ({ foods }: { foods: string[] }) => {
               : `u/${owner ?? user} hasn't rated anything yet.`}
           </EmptyMascot>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {current.data.categories.map((c, i) => (
-              <CategoryCard
-                key={c.food}
-                index={i}
-                category={c}
-                onOpen={() => setCategory(c.food)}
-              />
-            ))}
-          </div>
+          <>
+            <h2 className="px-1 pt-1 text-sm font-extrabold text-ink">
+              {whose} categories
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {current.data.categories.map((c, i) => (
+                <CategoryCard
+                  key={c.food}
+                  index={i}
+                  category={c}
+                  onOpen={() => setCategory(c.food)}
+                />
+              ))}
+            </div>
+          </>
         )}
       </main>
     </div>

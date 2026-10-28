@@ -12,6 +12,8 @@ import type {
   InitResponse,
   MapAreaResponse,
   TeamResponse,
+  TopRatedResponse,
+  FoodRatersResponse,
   TrendingResponse,
   MyPostsResponse,
   PlaceSearchResponse,
@@ -69,6 +71,11 @@ export const importPost = (postId: string) =>
   request<ImportPostResponse>(
     `/api/import?${new URLSearchParams({ id: postId })}`
   );
+
+export const fetchTopRated = () => request<TopRatedResponse>('/api/top-rated');
+
+export const fetchFoodRaters = (food: string) =>
+  request<FoodRatersResponse>(`/api/foods/${encodeURIComponent(food)}/raters`);
 
 export const fetchTeam = () => request<TeamResponse>('/api/team');
 

@@ -38,6 +38,8 @@ export type FoodCategory = {
   food: string;
   /** Number of ratings in this category. */
   count: number;
+  /** Average of these ratings, out of 10 (one decimal). */
+  average: number;
   top: { place: string; rating: number; image: string | null } | null;
 };
 
@@ -158,6 +160,43 @@ export type MyPostsResponse = {
   }[];
   /** Pass as `after` to load the next page; null when there are no more. */
   nextCursor: string | null;
+};
+
+/** A food category ranked by everyone's average rating. */
+export type TopRatedFood = {
+  food: string;
+  /** Average of everyone's ratings, out of 10 (one decimal). */
+  average: number;
+  /** How many ratings it has. */
+  count: number;
+  /** Photo from its best rating. */
+  image: string | null;
+};
+
+export type TopRatedResponse = {
+  foods: TopRatedFood[];
+};
+
+/** One person who rated a food, with their best rating of it. */
+export type FoodRater = {
+  username: string;
+  avatarUrl: string | null;
+  /** How many of this food they've rated. */
+  count: number;
+  /** Their average for this food, out of 10 (one decimal). */
+  average: number;
+  best: { place: string; rating: number; image: string | null };
+};
+
+/** Everyone who rated one food category, with totals across all of them. */
+export type FoodRatersResponse = {
+  food: string;
+  /** Average of every rating of this food, out of 10 (one decimal). */
+  average: number;
+  /** Ratings of this food, from everyone. */
+  count: number;
+  /** Best rating first. */
+  raters: FoodRater[];
 };
 
 /** The SwaadNama team, with their Reddit avatars. */

@@ -1,5 +1,5 @@
 import { Hono, type Context } from 'hono';
-import { context, reddit, redis } from '@devvit/web/server';
+import { context, reddit } from '@devvit/web/server';
 import type {
   CategoriesResponse,
   CreateReviewRequest,
@@ -17,6 +17,9 @@ import type {
   InitResponse,
   MapAreaResponse,
   TeamResponse,
+  TopRatedResponse,
+  FoodRater,
+  FoodRatersResponse,
   TrendingResponse,
   ProfileResponse,
   SaveModeRequest,
@@ -37,6 +40,7 @@ import {
   searchPlaces,
 } from '../core/external';
 import { postUrl } from '../core/post';
+import { getAvatarUrl } from '../core/avatars';
 import { deletePosts, resetRatings } from '../core/admin';
 import {
   getUserMode,
@@ -51,6 +55,9 @@ import {
   getTopFoods,
   getUserCategories,
   getUserReviews,
+  getFoodRatings,
+  getTopRatedFoods,
+  indexUserReviews,
   saveReview,
 } from '../core/reviews';
 
@@ -119,6 +126,12 @@ api.get('/init', async (c) => {
       getTopFoods(),
       username ? getUserMode(username) : Promise.resolve(null),
     ]);
+    // Adds the user's older ratings to the community index (once).
+    if (username) {
+      await indexUserReviews(username, myList).catch((err: unknown) =>
+        console.error('Index ratings error:', err)
+      );
+    }
     return c.json<InitResponse>({
       username,
       subredditName: context.subredditName ?? '',
@@ -288,37 +301,81 @@ api.get('/places', async (c) => {
   }
 });
 
-const TEAM_CACHE_KEY = 'team:v1';
-const TEAM_CACHE_MS = 24 * 60 * 60 * 1000;
-
-const parseTeam = (value: string | undefined): TeamResponse | null => {
-  if (!value) return null;
+/** Food categories with the best average rating across everyone. */
+api.get('/top-rated', async (c) => {
   try {
-    const team: TeamResponse = JSON.parse(value);
-    return team;
-  } catch {
-    return null;
+    return c.json<TopRatedResponse>({ foods: await getTopRatedFoods() });
+  } catch (error) {
+    return failure(c, error, 'top rated');
   }
-};
+});
 
-/** The team's avatars (Settings), cached for a day. */
+/** Everyone who rated a food, best rating first, with overall totals. */
+api.get('/foods/:food/raters', async (c) => {
+  const food = c.req.param('food').trim();
+  if (!food) {
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Pick a food category' },
+      400
+    );
+  }
+  try {
+    // Best first, so each person's first rating seen is their best.
+    const reviews = await getFoodRatings(food, 500);
+    const byUser = new Map<
+      string,
+      Omit<FoodRater, 'avatarUrl' | 'average'> & { total: number }
+    >();
+    for (const r of reviews) {
+      const key = r.username.toLowerCase();
+      const seen = byUser.get(key);
+      if (seen) {
+        seen.count++;
+        seen.total += r.rating;
+      } else {
+        byUser.set(key, {
+          username: r.username,
+          count: 1,
+          total: r.rating,
+          best: {
+            place: r.place,
+            rating: r.rating,
+            image: r.images[0] ?? null,
+          },
+        });
+      }
+    }
+    const raters = await Promise.all(
+      [...byUser.values()].map(async ({ total, ...rater }) => ({
+        ...rater,
+        average: Math.round((total / rater.count) * 10) / 10,
+        avatarUrl: await getAvatarUrl(rater.username),
+      }))
+    );
+    const total = reviews.reduce((sum, r) => sum + r.rating, 0);
+    return c.json<FoodRatersResponse>({
+      food: reviews[0]?.food ?? food,
+      average: reviews.length
+        ? Math.round((total / reviews.length) * 10) / 10
+        : 0,
+      count: reviews.length,
+      raters,
+    });
+  } catch (error) {
+    return failure(c, error, 'food raters');
+  }
+});
+
+/** The team's avatars (Settings). */
 api.get('/team', async (c) => {
   try {
-    const cached = parseTeam(await redis.get(TEAM_CACHE_KEY));
-    if (cached) return c.json<TeamResponse>(cached);
     const members = await Promise.all(
       TEAM_USERNAMES.map(async (username) => ({
         username,
-        avatarUrl:
-          (await reddit.getSnoovatarUrl(username).catch(() => undefined)) ??
-          null,
+        avatarUrl: await getAvatarUrl(username),
       }))
     );
-    const team: TeamResponse = { members };
-    await redis.set(TEAM_CACHE_KEY, JSON.stringify(team), {
-      expiration: new Date(Date.now() + TEAM_CACHE_MS),
-    });
-    return c.json<TeamResponse>(team);
+    return c.json<TeamResponse>({ members });
   } catch (error) {
     return failure(c, error, 'team');
   }

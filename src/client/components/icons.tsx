@@ -237,3 +237,15 @@ export const TrendingIcon = ({ className = '' }: IconProps) => (
     <path d="m3 17 6-6 4 4 8-8M15 7h6v6" />
   </svg>
 );
+
+/** Solid star, for average ratings. */
+export const StarIcon = ({ className = '' }: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden
+    className={className}
+  >
+    <path d="M12 2.8 14.8 8.6l6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9L12 2.8Z" />
+  </svg>
+);
