@@ -4,9 +4,12 @@ import type {
   FoodCategory,
   FoodReview,
 } from '../../shared/api';
-import { normalizeName } from '../../shared/food';
+import { normalizeName, rankRatings } from '../../shared/food';
 import { fetchCategories } from '../lib/api';
 import { riseDelay } from '../lib/motion';
+import { forgetMyPosts } from '../lib/postCache';
+import { Podium } from './decor';
+import { PlateIcon } from './icons';
 import { ReviewViewer } from './ReviewViewer';
 import { RankedList, UserReviews } from './reviews';
 import { EMPTY_RATINGS_IMAGE, useImageLoaded } from '../lib/art';
@@ -36,8 +39,8 @@ const CategoryCard = ({
     {category.top?.image ? (
       <Photo src={category.top.image} />
     ) : (
-      <span className="absolute inset-0 flex items-center justify-center text-5xl">
-        🍽️
+      <span className="absolute inset-0 flex items-center justify-center text-cta">
+        <PlateIcon className="h-14 w-14" />
       </span>
     )}
     {/* Light shade so the glass text stays readable on bright photos. */}
@@ -77,14 +80,22 @@ const UserCategoryRanking = ({
         if (reviews.length === 0) {
           return <EmptyState>No {food} ratings yet.</EmptyState>;
         }
+        const places = Math.max(
+          0,
+          ...rankRatings(reviews.map((r) => r.rating))
+        );
         return (
           <>
+            {/* Full-width hero under the header. */}
+            <div className="-mx-4 -mt-3">
+              <Podium places={places} />
+            </div>
             <RankedList
               rows={reviews.map((r) => ({
                 key: r.id,
                 place: r.place,
                 rating: r.rating,
-                detail: r.title || undefined,
+                detail: r.title || r.review || undefined,
                 image: r.images[0],
                 onClick: () => setOpen(r),
               }))}
@@ -153,7 +164,10 @@ export const Ratings = ({ foods }: { foods: string[] }) => {
               editable={isOwn}
               foods={foods}
               refreshKey={version}
-              onChanged={() => setVersion((v) => v + 1)}
+              onChanged={() => {
+                forgetMyPosts();
+                setVersion((v) => v + 1);
+              }}
             />
           )}
         </main>

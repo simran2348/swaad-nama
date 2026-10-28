@@ -6,22 +6,15 @@ import { fetchMyPosts } from '../lib/api';
 import { ImportWizard } from './ImportWizard';
 import { EMPTY_LIST_IMAGE, useImageLoaded } from '../lib/art';
 import { formatDate } from '../lib/format';
+import { postCache, type Post } from '../lib/postCache';
 import { riseDelay } from '../lib/motion';
 import { NAV_HEIGHT, NavSlotContext } from '../lib/navSlot';
 import { TIER_COLORS } from '../lib/tiers';
 import { PostViewer } from './PostViewer';
 import { EmptyMascot } from './EmptyMascot';
-import { MinusIcon, PlusIcon } from './icons';
+import { ArrowRightIcon, MinusIcon, PlateIcon, PlusIcon } from './icons';
 import { Photo } from './Photo';
 import { EmptyState, LoadingState } from './ui';
-
-type Post = MyPostsResponse['posts'][number];
-
-/**
- * Posts loaded so far, per user ('' = you), kept for the app session so
- * switching tabs doesn't refetch them. Reopening the post starts fresh.
- */
-const postCache = new Map<string, { posts: Post[]; cursor: string | null }>();
 
 /**
  * Posts in this subreddit, a page at a time (shown in My List). Your own
@@ -121,7 +114,7 @@ export const PostPicker = ({
                     aria-hidden
                     className="absolute inset-0 flex items-center justify-center pb-10 text-5xl"
                   >
-                    🍽️
+                    <PlateIcon className="h-12 w-12 text-neutral-400" />
                   </span>
                 )}
                 <span className="absolute -inset-x-px -bottom-px flex flex-col rounded-b-2xl bg-white/95 px-3.5 py-2.5 text-neutral-900 dark:bg-neutral-900/95 dark:text-white">
@@ -212,7 +205,7 @@ export const PostPicker = ({
       {selected.length > 0 &&
         navSlot &&
         createPortal(
-          <div className="pointer-events-auto h-full border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] backdrop-blur">
+          <div className="pointer-events-auto h-full rounded-t-3xl border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] backdrop-blur">
             <div className={`rise flex ${NAV_HEIGHT} items-center gap-3 px-4`}>
               <button
                 onClick={() => setSelected([])}
@@ -222,9 +215,10 @@ export const PostPicker = ({
               </button>
               <button
                 onClick={() => setImporting(true)}
-                className="flex-1 rounded-full bg-cta px-4 py-2.5 font-bold text-cta-ink shadow-md cursor-pointer hover:brightness-95 transition"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-cta px-4 py-2.5 font-bold text-cta-ink shadow-md cursor-pointer hover:brightness-95 transition"
               >
-                Add {selected.length} to tier →
+                Add {selected.length} to tier
+                <ArrowRightIcon className="h-4 w-4" />
               </button>
             </div>
           </div>,
@@ -240,12 +234,14 @@ export const PostPicker = ({
             setImporting(false);
             setSelected([]);
             const ratings = new Map(added.map((a) => [a.postId, a.rating]));
-            setPosts((prev) =>
-              prev.map((p) => ({
-                ...p,
-                rating: ratings.get(p.postId) ?? p.rating,
-              }))
-            );
+            const next = posts.map((p) => ({
+              ...p,
+              rating: ratings.get(p.postId) ?? p.rating,
+            }));
+            setPosts(next);
+            // Update the cache now: onAdded switches tabs, which unmounts
+            // this list before the effect that syncs the cache can run.
+            postCache.set(cacheKey, { posts: next, cursor });
             onAdded();
           }}
         />

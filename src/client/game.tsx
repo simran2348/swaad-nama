@@ -36,7 +36,7 @@ const BottomNav = ({
   tab: Tab;
   onChange: (tab: Tab) => void;
 }) => (
-  <nav className="flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] backdrop-blur group-has-[[data-nav-slot]>*]/nav:invisible">
+  <nav className="flex rounded-t-3xl border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_-10px_rgb(0_0_0/0.25)] backdrop-blur group-has-[[data-nav-slot]>*]/nav:invisible">
     {TABS.map((t) => {
       const active = t.id === tab;
       return (

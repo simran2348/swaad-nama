@@ -2,6 +2,7 @@ import { showToast } from '@devvit/web/client';
 import { saveTheme } from '../lib/api';
 import { PALETTES, setPalette, useTheme, type Palette } from '../lib/theme';
 import { ThemeSurface } from './FoodBackground';
+import { CheckIcon } from './icons';
 
 const choosePalette = (palette: Palette) => {
   setPalette(palette);
@@ -34,7 +35,7 @@ export const PalettePicker = () => {
               <ThemeSurface palette={p} className="relative h-10 rounded-lg" />
               {active && (
                 <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-cta text-[11px] font-bold text-cta-ink shadow-md">
-                  ✓
+                  <CheckIcon className="h-3 w-3" />
                 </span>
               )}
             </span>

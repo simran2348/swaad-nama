@@ -168,6 +168,24 @@
   background: var(--soft);
 }
 
+/* Score bars fill from the left (RankedList). */
+.bar-grow {
+  transform-origin: left;
+  animation: bar-grow 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-grow {
+    animation: none;
+  }
+}
+
 /* Entrance animations: list items rise in (staggered via inline
    animation-delay); popups fade their backdrop and spring the panel up. */
 .rise {

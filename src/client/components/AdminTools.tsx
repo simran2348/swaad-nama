@@ -1,16 +1,37 @@
 import { showToast } from '@devvit/web/client';
-import { useState, type ReactNode } from 'react';
+import { useState, type ComponentType, type ReactNode } from 'react';
 import type { AdminDeletePostsResponse } from '../../shared/api';
 import { adminDeletePosts, adminResetRatings } from '../lib/api';
 import { Spinner } from './ui';
+import { CheckCircleIcon, ShieldIcon, WrenchIcon, XCircleIcon } from './icons';
 
 const inputClass =
   'w-full rounded-lg border border-line bg-field px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-rose-500';
 
-const STATUS_LABEL: Record<string, string> = {
-  deleted: '✅ Deleted',
-  removed: '🛡️ Mod-removed',
-  failed: '❌ Failed',
+const STATUS: Record<
+  string,
+  { label: string; Icon: ComponentType<{ className?: string }>; color: string }
+> = {
+  deleted: {
+    label: 'Deleted',
+    Icon: CheckCircleIcon,
+    color: 'text-emerald-600',
+  },
+  removed: { label: 'Mod-removed', Icon: ShieldIcon, color: 'text-sky-600' },
+  failed: { label: 'Failed', Icon: XCircleIcon, color: 'text-rose-600' },
+};
+
+const StatusLabel = ({ status }: { status: string }) => {
+  const info = STATUS[status];
+  if (!info) return <span className="text-ink">{status}</span>;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 font-semibold ${info.color}`}
+    >
+      <info.Icon className="h-3.5 w-3.5" />
+      {info.label}
+    </span>
+  );
 };
 
 /** A destructive action: the first tap arms it, the second runs it. */
@@ -88,7 +109,10 @@ export const AdminTools = () => {
 
   return (
     <section className="rounded-2xl border-2 border-rose-500/40 bg-surface p-4 shadow-sm backdrop-blur">
-      <h2 className="font-bold text-ink">🛠️ Admin</h2>
+      <h2 className="flex items-center gap-1.5 font-bold text-ink">
+        <WrenchIcon className="h-4.5 w-4.5" />
+        Admin
+      </h2>
       <p className="mb-4 text-xs text-muted">Only visible to you.</p>
 
       <div className="flex flex-col gap-1.5">
@@ -124,7 +148,7 @@ export const AdminTools = () => {
             {results.map((r) => (
               <li key={r.id} className="flex flex-wrap gap-x-2">
                 <span className="font-mono font-semibold text-ink">{r.id}</span>
-                <span className="text-ink">{STATUS_LABEL[r.status]}</span>
+                <StatusLabel status={r.status} />
                 {r.message && <span className="text-muted">{r.message}</span>}
               </li>
             ))}

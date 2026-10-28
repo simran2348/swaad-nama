@@ -10,6 +10,7 @@ import type {
   ErrorResponse,
   ImportPostResponse,
   InitResponse,
+  MapAreaResponse,
   MyPostsResponse,
   PlaceSearchResponse,
   ProfileResponse,
@@ -66,6 +67,8 @@ export const importPost = (postId: string) =>
   request<ImportPostResponse>(
     `/api/import?${new URLSearchParams({ id: postId })}`
   );
+
+export const fetchMapArea = () => request<MapAreaResponse>('/api/map-area');
 
 export const searchPlaces = (query: string) =>
   request<PlaceSearchResponse>(`/api/places?q=${encodeURIComponent(query)}`);

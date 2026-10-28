@@ -3,8 +3,11 @@ import { useEffect, useState } from 'react';
 import type { PostDetailResponse } from '../../shared/api';
 import { fetchPost } from '../lib/api';
 import { formatDate, redditPostUrl } from '../lib/format';
+import { ExternalLinkIcon } from './icons';
+import { CalendarIcon } from './icons';
 import { Modal, PostContent } from './Modal';
 import { EmptyState, LoadingState } from './ui';
+import { Username } from './Username';
 
 type Result =
   { ok: true; post: PostDetailResponse } | { ok: false; error: string };
@@ -40,7 +43,7 @@ export const PostViewer = ({
       actions={[
         {
           label: 'View on Reddit',
-          icon: '↗',
+          icon: ExternalLinkIcon,
           onSelect: () => navigateTo(redditPostUrl(postId)),
         },
       ]}
@@ -55,7 +58,14 @@ export const PostViewer = ({
       ) : (
         <PostContent
           title={result.post.title}
-          meta={`u/${result.post.author} · ${formatDate(result.post.postedAt)}`}
+          meta={
+            <>
+              <Username name={result.post.author} />
+              <span aria-hidden>·</span>
+              <CalendarIcon className="h-3.5 w-3.5" />
+              <span>{formatDate(result.post.postedAt)}</span>
+            </>
+          }
           body={result.post.body}
         />
       )}

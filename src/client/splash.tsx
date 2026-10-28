@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client';
 import type { ProfileResponse } from '../shared/api';
 import { FoodBackground } from './components/FoodBackground';
 import { FoodLoader } from './components/FoodLoader';
-import { CogIcon } from './components/icons';
+import { CloseIcon, CogIcon } from './components/icons';
 import { PalettePicker } from './components/PalettePicker';
 import { Avatar } from './components/ui';
 import { fetchProfile } from './lib/api';
@@ -101,7 +101,7 @@ export const Splash = () => {
                 aria-label="Close"
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-soft text-soft-ink cursor-pointer hover:brightness-95"
               >
-                ✕
+                <CloseIcon className="h-4 w-4" />
               </button>
             </div>
             <div className="scroll-area px-4 pb-5">

@@ -113,7 +113,14 @@ export const getReview = async (id: string): Promise<FoodReview | null> =>
 /** Fields a user can change on their own rating. */
 export type ReviewEdit = Pick<
   FoodReview,
-  'title' | 'food' | 'place' | 'rating' | 'review' | 'budget' | 'vibes'
+  | 'title'
+  | 'food'
+  | 'place'
+  | 'location'
+  | 'rating'
+  | 'review'
+  | 'budget'
+  | 'vibes'
 >;
 
 export const updateReview = async (
@@ -124,21 +131,31 @@ export const updateReview = async (
     title: edit.title,
     food: edit.food,
     place: edit.place,
+    ...(edit.location ? { location: JSON.stringify(edit.location) } : {}),
     rating: String(edit.rating),
     scale: '10',
     review: edit.review,
     ...(edit.budget ? { budget: String(edit.budget) } : {}),
     vibes: JSON.stringify(edit.vibes),
   });
-  if (!edit.budget) await redis.hDel(keys.review(review.id), ['budget']);
+  const cleared = [
+    ...(edit.budget ? [] : ['budget']),
+    ...(edit.location ? [] : ['location']),
+  ];
+  if (cleared.length) await redis.hDel(keys.review(review.id), cleared);
   if (normalizeName(edit.food) !== normalizeName(review.food)) {
     await countFood(review.food, -1);
     await countFood(edit.food, 1);
   }
-  // Spread without `budget`, then add the edited one back only if set.
-  const { budget: _old, ...rest } = review;
-  const { budget, ...fields } = edit;
-  return { ...rest, ...fields, ...(budget ? { budget } : {}) };
+  // Spread without the optional fields, then add the edited ones back if set.
+  const { budget: _oldBudget, location: _oldLocation, ...rest } = review;
+  const { budget, location, ...fields } = edit;
+  return {
+    ...rest,
+    ...fields,
+    ...(budget ? { budget } : {}),
+    ...(location ? { location } : {}),
+  };
 };
 
 /** Removes a rating (the Reddit post it came from is left alone). */

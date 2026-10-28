@@ -1,6 +1,7 @@
 import { useTookLong } from '../lib/useTookLong';
 import { useState, type ReactNode } from 'react';
 import { FALLBACK_AVATAR_URL } from '../lib/art';
+import { ArrowLeftIcon } from './icons';
 
 export const EmptyState = ({ children }: { children: ReactNode }) => (
   <p className="mx-auto my-4 max-w-xs rounded-xl border border-line bg-surface px-4 py-6 text-center text-sm font-medium text-muted backdrop-blur">
@@ -39,9 +40,9 @@ export const BackButton = ({ onClick }: { onClick: () => void }) => (
   <button
     onClick={onClick}
     aria-label="Back"
-    className="shrink-0 rounded-full p-1.5 text-lg leading-none text-ink cursor-pointer hover:bg-soft transition-colors"
+    className="shrink-0 rounded-full p-1.5 text-ink cursor-pointer hover:bg-soft transition-colors"
   >
-    ←
+    <ArrowLeftIcon className="h-5 w-5" />
   </button>
 );
 

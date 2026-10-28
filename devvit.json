@@ -34,6 +34,25 @@
       }
     ]
   },
+  "settings": {
+    "subreddit": {
+      "mapArea": {
+        "type": "string",
+        "label": "Map area",
+        "helpText": "City, state or country this subreddit covers, e.g. Pune or India. The map opens on it and place search prefers it.",
+        "placeholder": "e.g. Pune",
+        "defaultValue": "India"
+      }
+    },
+    "global": {
+      "cartoApiKey": {
+        "type": "string",
+        "label": "CARTO basemaps API key",
+        "helpText": "Free key from carto.com/basemaps/apikey, used for the map tiles.",
+        "isSecret": true
+      }
+    }
+  },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install"
   },

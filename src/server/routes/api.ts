@@ -15,6 +15,7 @@ import type {
   PlaceLocation,
   PlaceSearchResponse,
   InitResponse,
+  MapAreaResponse,
   ProfileResponse,
   SaveModeRequest,
   SaveThemeRequest,
@@ -25,6 +26,7 @@ import { isAppMode, isPaletteId } from '../../shared/theme';
 import { cleanVibes, isValidBudget, isValidRating } from '../../shared/food';
 import {
   fetchTile,
+  getMapArea,
   getPostDetail,
   importPost,
   listMyPosts,
@@ -265,13 +267,30 @@ api.get('/places', async (c) => {
     return c.json<PlaceSearchResponse>({ places: [] });
   }
   try {
-    return c.json<PlaceSearchResponse>(await searchPlaces(query.slice(0, 100)));
+    // Prefer places in the subreddit's area; search anyway if that fails.
+    const area = await getMapArea().catch(() => null);
+    return c.json<PlaceSearchResponse>(
+      await searchPlaces(
+        query.slice(0, 100),
+        area ? { lat: area.lat, lon: area.lon } : undefined
+      )
+    );
   } catch (error) {
     console.error('API place search error:', error);
     return c.json<ErrorResponse>(
       { status: 'error', message: errorMessage(error) },
       502
     );
+  }
+});
+
+/** Where the map opens for this subreddit (a mod setting). */
+api.get('/map-area', async (c) => {
+  try {
+    return c.json<MapAreaResponse>({ area: await getMapArea() });
+  } catch (error) {
+    console.error('API map area error:', error);
+    return c.json<MapAreaResponse>({ area: null });
   }
 });
 
@@ -327,6 +346,7 @@ const readRating = (
   const title = body.title?.trim() || `${food} at ${place}`;
   const rating = Number(body.rating);
   const budget = body.budget === undefined ? undefined : Number(body.budget);
+  const location = validLocation(body.location);
   if (budget !== undefined && !isValidBudget(budget)) {
     return { ok: false, message: 'Budget is out of range' };
   }
@@ -350,6 +370,7 @@ const readRating = (
       title,
       food,
       place,
+      ...(location ? { location } : {}),
       rating,
       review,
       ...(budget !== undefined ? { budget } : {}),
@@ -391,8 +412,6 @@ api.post('/reviews', async (c) => {
       400
     );
   }
-  const location = validLocation(body.location);
-
   try {
     // Ratings keep the original post (and its photos and date).
     const source = await importPost(
@@ -409,7 +428,6 @@ api.post('/reviews', async (c) => {
     const saved = await saveReview({
       username,
       ...fields.value,
-      ...(location ? { location } : {}),
       images: withCoverFirst(source.images, body.coverImage),
       postedAt: source.postedAt,
       postId: source.postId,

@@ -3,6 +3,7 @@ import type { PlaceLocation, PlaceSearchResponse } from '../../shared/api';
 import { searchPlaces } from '../lib/api';
 import { PLACE_SEARCH_ENABLED } from '../lib/features';
 import { Spinner } from './ui';
+import { PinIcon } from './icons';
 
 type Place = PlaceSearchResponse['places'][number];
 
@@ -65,13 +66,14 @@ export const PlacePicker = ({
         onChange={(e) => onChange(e.target.value, undefined)}
       />
       {!PLACE_SEARCH_ENABLED && (
-        <p className="mt-1 text-xs text-muted">
-          📍 Location search is coming soon.
+        <p className="mt-1 flex items-center gap-1 text-xs text-muted">
+          <PinIcon className="h-3.5 w-3.5 shrink-0" />
+          Location search is coming soon.
         </p>
       )}
       {location && (
         <p className="mt-1 flex items-start gap-1 text-xs text-muted">
-          <span aria-hidden>📍</span>
+          <PinIcon className="mt-px h-3.5 w-3.5 shrink-0" />
           {location.address || 'Location saved'}
         </p>
       )}

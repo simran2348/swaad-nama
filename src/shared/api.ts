@@ -102,6 +102,8 @@ export type UpdateReviewRequest = {
   title: string;
   food: string;
   place: string;
+  /** Left out to clear it. */
+  location?: PlaceLocation;
   rating: number;
   review: string;
   /** Left out to clear it. */
@@ -156,6 +158,20 @@ export type MyPostsResponse = {
   }[];
   /** Pass as `after` to load the next page; null when there are no more. */
   nextCursor: string | null;
+};
+
+/** The area a subreddit covers (a mod setting), for framing the map. */
+export type MapArea = {
+  name: string;
+  lat: number;
+  lon: number;
+  /** Zoom to use when there are no bounds (e.g. a city given as a point). */
+  zoom: number;
+  bounds: { south: number; west: number; north: number; east: number } | null;
+};
+
+export type MapAreaResponse = {
+  area: MapArea | null;
 };
 
 export type PlaceSearchResponse = {

@@ -1,13 +1,15 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { cleanPostBody } from '../../shared/text';
 import { useTheme } from '../lib/theme';
 import { Carousel } from './Carousel';
+import { Waves } from './decor';
 import { ThemeSurface } from './FoodBackground';
 
 /** An item in the detail page's ⋯ menu. */
 export type MenuAction = {
   label: string;
-  icon: string;
+  /** An icon component from ./icons (sized by the menu). */
+  icon: ComponentType<{ className?: string }>;
   onSelect: () => void;
   danger?: boolean;
 };
@@ -76,9 +78,7 @@ const Menu = ({ actions }: { actions: MenuAction[] }) => {
                       : 'text-ink'
                   }`}
                 >
-                  <span aria-hidden className="w-5 text-center">
-                    {action.icon}
-                  </span>
+                  <action.icon className="h-4.5 w-4.5 shrink-0" />
                   {action.label}
                 </button>
               </li>
@@ -151,6 +151,7 @@ export const Modal = ({
           withArt={false}
           className="absolute inset-0 -z-10"
         />
+        <Waves className="absolute inset-x-0 bottom-0 -z-10 h-32 w-full text-cta" />
         <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <button onClick={back} aria-label="Back" className={roundButton}>
             <BackArrow />
@@ -186,19 +187,23 @@ export const PostContent = ({
   children,
 }: {
   title: string;
-  meta?: string;
+  meta?: ReactNode;
   body: string;
   /** Rendered between the meta line and the body (e.g. the rating). */
   children?: ReactNode;
 }) => {
   const text = cleanPostBody(body);
   return (
-    <article className="flex flex-col gap-3 px-4 pt-4 pb-8">
+    <article className="flex flex-col gap-3 px-4 pt-4 pb-28">
       <div>
-        <h2 className="text-lg font-extrabold leading-snug text-ink">
+        <h2 className="text-xl font-extrabold leading-snug text-ink">
           {title}
         </h2>
-        {meta && <p className="mt-0.5 text-xs text-muted">{meta}</p>}
+        {meta && (
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-1 text-xs text-muted">
+            {meta}
+          </p>
+        )}
       </div>
       {children}
       {text && (

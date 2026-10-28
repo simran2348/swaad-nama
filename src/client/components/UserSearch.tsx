@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { SearchIcon } from './icons';
+import { CloseIcon, SearchIcon } from './icons';
 
 /**
  * Username search box. While a user is being viewed, shows them as a chip
@@ -61,7 +61,7 @@ export const UserSearch = ({
               aria-label={`Stop viewing u/${user}`}
               className="flex h-5 w-5 items-center justify-center rounded-full text-xs leading-none cursor-pointer hover:bg-line"
             >
-              ✕
+              <CloseIcon className="h-3 w-3" />
             </button>
           </span>
         </div>

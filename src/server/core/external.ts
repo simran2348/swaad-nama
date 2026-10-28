@@ -1,7 +1,15 @@
-import { context, reddit, type Post } from '@devvit/web/server';
+import {
+  context,
+  reddit,
+  redis,
+  settings,
+  type Post,
+} from '@devvit/web/server';
 import { cleanPostBody } from '../../shared/text';
+import { normalizeName } from '../../shared/food';
 import type {
   ImportPostResponse,
+  MapArea,
   MyPostsResponse,
   PlaceSearchResponse,
   PostDetailResponse,
@@ -190,9 +198,16 @@ const text = (obj: unknown, key: string): string => {
 };
 
 export const searchPlaces = async (
-  query: string
+  query: string,
+  /** Prefer results near here (the subreddit's map area). */
+  near?: { lat: number; lon: number }
 ): Promise<PlaceSearchResponse> => {
-  const params = new URLSearchParams({ q: query, limit: '10', lang: 'en' });
+  const params = new URLSearchParams({
+    q: query,
+    limit: '10',
+    lang: 'en',
+    ...(near ? { lat: String(near.lat), lon: String(near.lon) } : {}),
+  });
   const res = await fetch(`${PHOTON_URL}?${params}`);
   if (!res.ok) throw new Error(`Place search failed (${res.status})`);
   const json: unknown = await res.json();
@@ -227,12 +242,97 @@ export const searchPlaces = async (
 };
 
 // ---------------------------------------------------------------------------
+// Map area (subreddit setting, looked up once with Photon and cached)
+// ---------------------------------------------------------------------------
+
+/** How far to zoom in on an area Photon gives only as a point. */
+const AREA_ZOOM: Record<string, number> = {
+  country: 5,
+  state: 7,
+  county: 9,
+  district: 10,
+  city: 11,
+};
+
+const lookupArea = async (name: string): Promise<MapArea | null> => {
+  const params = new URLSearchParams({ q: name, limit: '1', lang: 'en' });
+  for (const layer of ['country', 'state', 'county', 'district', 'city']) {
+    params.append('layer', layer);
+  }
+  const res = await fetch(`${PHOTON_URL}?${params}`);
+  if (!res.ok) throw new Error(`Map area lookup failed (${res.status})`);
+  const features = field(await res.json(), 'features');
+  const [feature]: unknown[] = Array.isArray(features) ? features : [];
+  const props = field(feature, 'properties');
+  const coords = field(field(feature, 'geometry'), 'coordinates');
+  const [lon, lat] = Array.isArray(coords) ? coords : [];
+  if (typeof lat !== 'number' || typeof lon !== 'number') return null;
+  // Photon's extent is [west, north, east, south].
+  const extent = field(props, 'extent');
+  const [west, north, east, south] = Array.isArray(extent) ? extent : [];
+  const bounds =
+    typeof west === 'number' &&
+    typeof north === 'number' &&
+    typeof east === 'number' &&
+    typeof south === 'number'
+      ? { south, west, north, east }
+      : null;
+  return {
+    name: text(props, 'name') || name,
+    lat,
+    lon,
+    zoom: AREA_ZOOM[text(props, 'type')] ?? 11,
+    bounds,
+  };
+};
+
+const parseArea = (value: string | undefined): MapArea | null => {
+  if (!value) return null;
+  try {
+    const area: MapArea = JSON.parse(value);
+    return area;
+  } catch {
+    return null;
+  }
+};
+
+/** The subreddit's map area from the `mapArea` setting, or null if unset or not found. */
+export const getMapArea = async (): Promise<MapArea | null> => {
+  const name = (await settings.get<string>('mapArea'))?.trim() ?? '';
+  if (!name) return null;
+  const cacheKey = `maparea:${normalizeName(name)}`;
+  const cached = parseArea(await redis.get(cacheKey));
+  if (cached) return cached;
+  const area = await lookupArea(name);
+  if (area) await redis.set(cacheKey, JSON.stringify(area));
+  else console.warn(`Map area "${name}" not found`);
+  return area;
+};
+
+// ---------------------------------------------------------------------------
 // Map tiles (CARTO basemaps), proxied so the web view only loads our origin
 // ---------------------------------------------------------------------------
 
 const TILE_STYLES: Record<string, string> = {
   light: 'rastertiles/voyager',
   dark: 'dark_all',
+};
+
+/**
+ * CARTO needs an API key, kept as a secret app setting. Set it with
+ * `npx devvit settings set cartoApiKey`. Without one, tiles come back with
+ * an "API KEY REQUIRED" watermark.
+ */
+let cartoKey: string | undefined;
+const getCartoKey = async (): Promise<string> => {
+  if (cartoKey) return cartoKey;
+  const value = (await settings.get<string>('cartoApiKey'))?.trim() ?? '';
+  if (value) cartoKey = value;
+  else
+    console.warn(
+      'cartoApiKey setting is not set; map tiles will show a watermark.'
+    );
+  return value;
 };
 
 export const fetchTile = async (
@@ -248,8 +348,10 @@ export const fetchTile = async (
     return null;
   }
   const [, yTile, retina = ''] = yMatch;
+  const key = await getCartoKey();
+  const query = key ? `?${new URLSearchParams({ key })}` : '';
   const upstream = await fetch(
-    `https://basemaps.cartocdn.com/${path}/${zoom}/${x}/${yTile}${retina}.png`
+    `https://basemaps.cartocdn.com/${path}/${zoom}/${x}/${yTile}${retina}.png${query}`
   );
   if (!upstream.ok) return null;
   return new Response(await upstream.arrayBuffer(), {

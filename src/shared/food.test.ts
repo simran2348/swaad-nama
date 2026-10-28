@@ -5,6 +5,7 @@ import {
   isValidBudget,
   isValidRating,
   normalizeName,
+  rankRatings,
   ratingToStars,
   tierFor,
 } from './food.ts';
@@ -67,4 +68,10 @@ test('cleanVibes trims, de-duplicates and caps the list', () => {
   );
   assert.deepEqual(cleanVibes('nope'), []);
   assert.equal(cleanVibes(['x'.repeat(40)])[0]?.length, 24);
+});
+
+test('rankRatings gives equal ratings the same place', () => {
+  assert.deepEqual(rankRatings([9, 9, 8.5, 8, 8, 7]), [1, 1, 2, 3, 3, 4]);
+  assert.deepEqual(rankRatings([7.5]), [1]);
+  assert.deepEqual(rankRatings([]), []);
 });

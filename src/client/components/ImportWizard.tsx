@@ -14,6 +14,7 @@ import {
   ScreenHeader,
   Spinner,
 } from './ui';
+import { ArrowRightIcon } from './icons';
 
 type Item = {
   post: ImportPostResponse;
@@ -216,7 +217,9 @@ export const ImportWizard = ({
               ) : isLast ? (
                 `Submit${items.length > 1 ? ` all ${items.length}` : ''}`
               ) : (
-                'Next →'
+                <>
+                  Next <ArrowRightIcon className="h-4 w-4" />
+                </>
               )}
             </button>
           </div>

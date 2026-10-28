@@ -1,11 +1,12 @@
 import { navigateTo, showToast } from '@devvit/web/client';
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { saveMode } from '../lib/api';
 import { setMode, useTheme, type Mode } from '../lib/theme';
 import { TIER_COLORS } from '../lib/tiers';
 import { isAdmin } from '../../shared/admin';
 import { AdminTools } from './AdminTools';
 import { ScreenHeader } from './ui';
+import { MailIcon, MoonIcon, SunIcon } from './icons';
 
 const FEEDBACK_SUBJECT = 'SwaadNama - User Feedback';
 
@@ -17,9 +18,13 @@ const TIERS: { tier: string; range: string }[] = [
   { tier: 'D', range: 'below 4' },
 ];
 
-const MODES: { id: Mode; label: string }[] = [
-  { id: 'light', label: '☀️ Light' },
-  { id: 'dark', label: '🌙 Dark' },
+const MODES: {
+  id: Mode;
+  label: string;
+  Icon: ComponentType<{ className?: string }>;
+}[] = [
+  { id: 'light', label: 'Light', Icon: SunIcon },
+  { id: 'dark', label: 'Dark', Icon: MoonIcon },
 ];
 
 const chooseMode = (mode: Mode) => {
@@ -119,12 +124,13 @@ export const Settings = ({
                 role="radio"
                 aria-checked={mode === m.id}
                 onClick={() => mode !== m.id && chooseMode(m.id)}
-                className={`flex-1 rounded-full px-3 py-2 text-sm font-bold cursor-pointer transition-colors ${
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-sm font-bold cursor-pointer transition-colors ${
                   mode === m.id
                     ? 'bg-cta text-cta-ink shadow-sm'
                     : 'text-muted hover:text-ink'
                 }`}
               >
+                <m.Icon className="h-4 w-4" />
                 {m.label}
               </button>
             ))}
@@ -142,9 +148,10 @@ export const Settings = ({
           <button
             onClick={() => navigateTo(modmailUrl(subredditName))}
             disabled={!subredditName}
-            className="w-full rounded-full bg-cta px-4 py-2.5 font-bold text-cta-ink shadow-sm cursor-pointer hover:brightness-95 transition disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-cta px-4 py-2.5 font-bold text-cta-ink shadow-sm cursor-pointer hover:brightness-95 transition disabled:cursor-not-allowed disabled:opacity-60"
           >
-            ✉️ Send feedback
+            <MailIcon className="h-4.5 w-4.5" />
+            Send feedback
           </button>
         </Section>
         {isAdmin(username) && <AdminTools />}

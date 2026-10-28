@@ -5,7 +5,14 @@ import { MAX_RATING, formatBudget, tierFor } from '../../shared/food';
 import { deleteReview, updateReview } from '../lib/api';
 import { draftToUpdate, isDraftComplete } from '../lib/draft';
 import { formatDate, redditPostUrl } from '../lib/format';
-import { TIER_COLORS } from '../lib/tiers';
+import { TIER_COLORS, TIER_LABELS, TIER_TEXT } from '../lib/tiers';
+import {
+  CalendarIcon,
+  ExternalLinkIcon,
+  PencilIcon,
+  PinIcon,
+  TrashIcon,
+} from './icons';
 import { Modal, PostContent, type MenuAction } from './Modal';
 import { ReviewFields, type ReviewDraft } from './ReviewFields';
 import { Spinner } from './ui';
@@ -87,7 +94,7 @@ export const ReviewViewer = ({
       ? [
           {
             label: 'View on Reddit',
-            icon: '↗',
+            icon: ExternalLinkIcon,
             onSelect: () => navigateTo(redditPostUrl(postId)),
           },
         ]
@@ -96,7 +103,7 @@ export const ReviewViewer = ({
       ? [
           {
             label: 'Edit rating',
-            icon: '✏️',
+            icon: PencilIcon,
             onSelect: () => {
               setConfirmDelete(false);
               setDraft(toDraft(current));
@@ -104,7 +111,7 @@ export const ReviewViewer = ({
           },
           {
             label: 'Delete rating',
-            icon: '🗑️',
+            icon: TrashIcon,
             danger: true,
             onSelect: () => setConfirmDelete(true),
           },
@@ -180,37 +187,59 @@ export const ReviewViewer = ({
     >
       <PostContent
         title={current.title || `${current.food} at ${current.place}`}
-        meta={formatDate(current.postedAt)}
+        meta={
+          <>
+            <CalendarIcon className="h-3.5 w-3.5" />
+            <span>{formatDate(current.postedAt)}</span>
+          </>
+        }
         body={current.review}
       >
-        <div className="flex items-center gap-2.5 rounded-xl border border-line bg-surface p-2.5 backdrop-blur">
+        {/* Place card: tier, place and address, then the score. */}
+        <div className="mt-1 flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-sm backdrop-blur">
           <span
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base font-extrabold text-white shadow-sm ${TIER_COLORS[tier]}`}
+            title={`${tier} tier`}
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl font-extrabold text-white shadow-md ${TIER_COLORS[tier]}`}
           >
             {tier}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-ink">
+            <p className="truncate text-base font-bold text-ink">
               {current.place}
             </p>
             <p className="truncate text-xs text-muted">{current.food}</p>
+            {current.location?.address && (
+              <p className="mt-1 flex items-start gap-1 text-xs text-muted">
+                <PinIcon className="mt-px h-3.5 w-3.5 shrink-0" />
+                <span className="line-clamp-2">{current.location.address}</span>
+              </p>
+            )}
           </div>
-          <p className="shrink-0 text-lg font-extrabold leading-none text-ink">
-            {current.rating}
-            <span className="text-xs font-bold text-muted">/{MAX_RATING}</span>
-          </p>
+          <div className="shrink-0 text-right">
+            <p className="leading-none">
+              <span className="text-2xl font-extrabold text-ink">
+                {current.rating}
+              </span>
+              <span className="text-sm font-bold text-muted">
+                /{MAX_RATING}
+              </span>
+            </p>
+            <p className={`mt-1 text-xs font-bold ${TIER_TEXT[tier] ?? ''}`}>
+              {TIER_LABELS[tier]}
+            </p>
+          </div>
         </div>
         {(current.budget !== undefined || current.vibes.length > 0) && (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             {current.budget !== undefined && (
-              <span className="rounded-full bg-cta px-2.5 py-1 text-xs font-bold text-cta-ink">
+              <span className="rounded-full bg-cta px-3.5 py-1.5 text-sm font-bold text-cta-ink shadow-sm">
                 {formatBudget(current.budget)} / person
               </span>
             )}
             {current.vibes.map((vibe) => (
               <span
                 key={vibe}
-                className="rounded-full border border-line bg-soft px-2.5 py-1 text-xs font-semibold text-soft-ink"
+                className="rounded-full border border-line bg-soft px-3.5 py-1.5 text-sm font-semibold text-soft-ink"
               >
                 {vibe}
               </span>

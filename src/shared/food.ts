@@ -16,6 +16,24 @@ export const tierFor = (average: number): Tier => {
   return 'D';
 };
 
+/**
+ * Places for ratings sorted best first, where equal ratings share a place
+ * and the next one follows on (9, 9, 8 → 1, 1, 2), so ties get the same medal.
+ */
+export const rankRatings = (ratings: number[]): number[] => {
+  let rank = 0;
+  let previous: number | null = null;
+  return ratings.map((rating) => {
+    // Ratings have one decimal place; compare in tenths to avoid float noise.
+    const tenths = Math.round(rating * 10);
+    if (tenths !== previous) {
+      rank++;
+      previous = tenths;
+    }
+    return rank;
+  });
+};
+
 /** Rating out of 10 shown as 0–5 stars (half stars allowed). */
 export const ratingToStars = (rating: number): number => Math.round(rating) / 2;
 

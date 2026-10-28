@@ -30,7 +30,7 @@ export const EmptyMascot = ({
           width={width}
           height={height}
           onError={() => setFailed(true)}
-          className="h-36 w-auto max-w-full object-contain"
+          className="h-40 w-auto max-w-full object-contain"
         />
       )}
       <h3 className="mt-2 text-lg font-extrabold text-ink">{title}</h3>
