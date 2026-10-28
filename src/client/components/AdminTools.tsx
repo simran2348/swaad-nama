@@ -2,8 +2,8 @@ import { showToast } from '@devvit/web/client';
 import { useState, type ComponentType, type ReactNode } from 'react';
 import type { AdminDeletePostsResponse } from '../../shared/api';
 import { adminDeletePosts, adminResetRatings } from '../lib/api';
-import { Spinner } from './ui';
-import { CheckCircleIcon, ShieldIcon, WrenchIcon, XCircleIcon } from './icons';
+import { ScreenHeader, Spinner } from './ui';
+import { CheckCircleIcon, ShieldIcon, XCircleIcon } from './icons';
 
 const inputClass =
   'w-full rounded-lg border border-line bg-field px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-rose-500';
@@ -109,12 +109,6 @@ export const AdminTools = () => {
 
   return (
     <section className="rounded-2xl border-2 border-rose-500/40 bg-surface p-4 shadow-sm backdrop-blur">
-      <h2 className="flex items-center gap-1.5 font-bold text-ink">
-        <WrenchIcon className="h-4.5 w-4.5" />
-        Admin
-      </h2>
-      <p className="mb-4 text-xs text-muted">Only visible to you.</p>
-
       <div className="flex flex-col gap-1.5">
         <label
           htmlFor="admin-post-ids"
@@ -189,3 +183,13 @@ export const AdminTools = () => {
     </section>
   );
 };
+
+/** Admin tab: only shown to the admin account (checked on the server too). */
+export const AdminScreen = () => (
+  <div className="flex h-full min-h-0 flex-1 flex-col">
+    <ScreenHeader title="Admin" subtitle="Only visible to you" />
+    <main className="scroll-area flex flex-1 flex-col gap-3 px-4 pt-3 pb-6">
+      <AdminTools />
+    </main>
+  </div>
+);

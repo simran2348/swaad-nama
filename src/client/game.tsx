@@ -11,7 +11,15 @@ import {
 import { createRoot } from 'react-dom/client';
 import type { InitResponse } from '../shared/api';
 import { FoodBackground } from './components/FoodBackground';
-import { CogIcon, ListIcon, MapIcon, TrophyIcon } from './components/icons';
+import {
+  CogIcon,
+  ListIcon,
+  MapIcon,
+  TrophyIcon,
+  WrenchIcon,
+} from './components/icons';
+import { AdminScreen } from './components/AdminTools';
+import { isAdmin } from '../shared/admin';
 import { MapView } from './components/MapView';
 import { MyList } from './components/MyList';
 import { Ratings } from './components/Ratings';
@@ -20,24 +28,35 @@ import { fetchInit } from './lib/api';
 import { NAV_HEIGHT, NavSlotContext } from './lib/navSlot';
 import { initAppTheme, syncMode } from './lib/theme';
 
-type Tab = 'list' | 'ratings' | 'map' | 'settings';
+type Tab = 'list' | 'ratings' | 'map' | 'settings' | 'admin';
 
-const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
+type TabInfo = { id: Tab; label: string; icon: ReactNode };
+
+const TABS: TabInfo[] = [
   { id: 'list', label: 'My List', icon: <ListIcon className="h-6 w-6" /> },
   { id: 'ratings', label: 'Ratings', icon: <TrophyIcon className="h-6 w-6" /> },
   { id: 'map', label: 'Map', icon: <MapIcon className="h-6 w-6" /> },
   { id: 'settings', label: 'Settings', icon: <CogIcon className="h-6 w-6" /> },
 ];
 
+/** Only for the admin account (the server checks too). */
+const ADMIN_TAB: TabInfo = {
+  id: 'admin',
+  label: 'Admin',
+  icon: <WrenchIcon className="h-6 w-6" />,
+};
+
 const BottomNav = ({
   tab,
+  tabs,
   onChange,
 }: {
   tab: Tab;
+  tabs: TabInfo[];
   onChange: (tab: Tab) => void;
 }) => (
   <nav className="flex rounded-t-3xl border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_-10px_rgb(0_0_0/0.25)] backdrop-blur group-has-[[data-nav-slot]>*]/nav:invisible">
-    {TABS.map((t) => {
+    {tabs.map((t) => {
       const active = t.id === tab;
       return (
         <button
@@ -99,11 +118,10 @@ export const App = () => {
             <Ratings foods={data?.foods ?? []} />
           ) : tab === 'map' ? (
             <MapView data={data} />
+          ) : tab === 'admin' && isAdmin(data?.username) ? (
+            <AdminScreen />
           ) : (
-            <Settings
-              subredditName={data?.subredditName ?? ''}
-              username={data?.username ?? null}
-            />
+            <Settings subredditName={data?.subredditName ?? ''} />
           )}
         </div>
       </NavSlotContext>
@@ -114,7 +132,11 @@ export const App = () => {
           data-nav-slot
           className="pointer-events-none absolute inset-0 z-10"
         />
-        <BottomNav tab={tab} onChange={setTab} />
+        <BottomNav
+          tab={tab}
+          tabs={isAdmin(data?.username) ? [...TABS, ADMIN_TAB] : TABS}
+          onChange={setTab}
+        />
       </div>
     </div>
   );

@@ -3,9 +3,12 @@ import type { ComponentType, ReactNode } from 'react';
 import { saveMode } from '../lib/api';
 import { setMode, useTheme, type Mode } from '../lib/theme';
 import { TIER_COLORS } from '../lib/tiers';
-import { isAdmin } from '../../shared/admin';
-import { AdminTools } from './AdminTools';
-import { ScreenHeader } from './ui';
+import { useEffect, useState } from 'react';
+import type { TeamResponse } from '../../shared/api';
+import { TEAM_USERNAMES } from '../../shared/team';
+import { fetchTeam } from '../lib/api';
+import { Avatar, ScreenHeader } from './ui';
+import { Username } from './Username';
 import { MailIcon, MoonIcon, SunIcon } from './icons';
 
 const FEEDBACK_SUBJECT = 'SwaadNama - User Feedback';
@@ -57,13 +60,69 @@ const Section = ({
   </section>
 );
 
-export const Settings = ({
-  subredditName,
-  username,
-}: {
-  subredditName: string;
-  username: string | null;
-}) => {
+/** Loaded once per app session. */
+let teamCache: TeamResponse | null = null;
+
+const placeholderTeam = (): TeamResponse => ({
+  members: TEAM_USERNAMES.map((username) => ({ username, avatarUrl: null })),
+});
+
+/** The team's Reddit avatars; tap one to open their profile. */
+const Team = () => {
+  const [team, setTeam] = useState(teamCache);
+
+  useEffect(() => {
+    if (teamCache) return;
+    let cancelled = false;
+    fetchTeam()
+      .then((res) => {
+        teamCache = res;
+        if (!cancelled) setTeam(res);
+      })
+      .catch((err: unknown) => {
+        console.error('Team failed', err);
+        // Still show the names, with the default Snoo.
+        if (!cancelled) setTeam(placeholderTeam());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <ul className="mt-2 grid grid-cols-2 gap-3">
+      {(team ?? placeholderTeam()).members.map((member) => (
+        <li
+          key={member.username}
+          className="flex flex-col items-center gap-1.5 rounded-xl bg-soft px-2 pt-3 pb-2"
+        >
+          <button
+            onClick={() =>
+              navigateTo(`https://www.reddit.com/user/${member.username}`)
+            }
+            aria-label={`Open u/${member.username}'s profile`}
+            className="flex h-28 items-end justify-center cursor-pointer transition hover:-translate-y-0.5"
+          >
+            {team ? (
+              <Avatar
+                url={member.avatarUrl}
+                username={member.username}
+                className="h-28"
+              />
+            ) : (
+              <span className="h-24 w-20 animate-pulse rounded-full bg-line" />
+            )}
+          </button>
+          <span className="text-xs font-bold text-soft-ink">
+            <Username name={member.username} />
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+export const Settings = ({ subredditName }: { subredditName: string }) => {
   const mode: Mode = useTheme().dark ? 'dark' : 'light';
 
   return (
@@ -154,7 +213,9 @@ export const Settings = ({
             Send feedback
           </button>
         </Section>
-        {isAdmin(username) && <AdminTools />}
+        <Section title="The people behind SwaadNama">
+          <Team />
+        </Section>
       </main>
     </div>
   );

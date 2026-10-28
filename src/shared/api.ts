@@ -160,6 +160,11 @@ export type MyPostsResponse = {
   nextCursor: string | null;
 };
 
+/** The SwaadNama team, with their Reddit avatars. */
+export type TeamResponse = {
+  members: { username: string; avatarUrl: string | null }[];
+};
+
 /** A popular recent post, for the trending row on My List. */
 export type TrendingPost = {
   postId: string;

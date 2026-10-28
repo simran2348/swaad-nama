@@ -1,5 +1,5 @@
 import { Hono, type Context } from 'hono';
-import { context, reddit } from '@devvit/web/server';
+import { context, reddit, redis } from '@devvit/web/server';
 import type {
   CategoriesResponse,
   CreateReviewRequest,
@@ -16,6 +16,7 @@ import type {
   PlaceSearchResponse,
   InitResponse,
   MapAreaResponse,
+  TeamResponse,
   TrendingResponse,
   ProfileResponse,
   SaveModeRequest,
@@ -23,6 +24,7 @@ import type {
   UserReviewsResponse,
 } from '../../shared/api';
 import { isAdmin } from '../../shared/admin';
+import { TEAM_USERNAMES } from '../../shared/team';
 import { isAppMode, isPaletteId } from '../../shared/theme';
 import { cleanVibes, isValidBudget, isValidRating } from '../../shared/food';
 import {
@@ -283,6 +285,42 @@ api.get('/places', async (c) => {
       { status: 'error', message: errorMessage(error) },
       502
     );
+  }
+});
+
+const TEAM_CACHE_KEY = 'team:v1';
+const TEAM_CACHE_MS = 24 * 60 * 60 * 1000;
+
+const parseTeam = (value: string | undefined): TeamResponse | null => {
+  if (!value) return null;
+  try {
+    const team: TeamResponse = JSON.parse(value);
+    return team;
+  } catch {
+    return null;
+  }
+};
+
+/** The team's avatars (Settings), cached for a day. */
+api.get('/team', async (c) => {
+  try {
+    const cached = parseTeam(await redis.get(TEAM_CACHE_KEY));
+    if (cached) return c.json<TeamResponse>(cached);
+    const members = await Promise.all(
+      TEAM_USERNAMES.map(async (username) => ({
+        username,
+        avatarUrl:
+          (await reddit.getSnoovatarUrl(username).catch(() => undefined)) ??
+          null,
+      }))
+    );
+    const team: TeamResponse = { members };
+    await redis.set(TEAM_CACHE_KEY, JSON.stringify(team), {
+      expiration: new Date(Date.now() + TEAM_CACHE_MS),
+    });
+    return c.json<TeamResponse>(team);
+  } catch (error) {
+    return failure(c, error, 'team');
   }
 });
 
