@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from 'react';
 import type { FoodReview, InitResponse, MapArea } from '../../shared/api';
 import { fetchMapArea } from '../lib/api';
 import { PLACE_SEARCH_ENABLED } from '../lib/features';
-import { useTheme } from '../lib/theme';
 import { InfoIcon } from './icons';
 import { ReviewViewer } from './ReviewViewer';
 import { ScreenHeader } from './ui';
@@ -13,8 +12,9 @@ import { ScreenHeader } from './ui';
 // Tiles are proxied through our server (see server/core/external.ts).
 // Bump `v` to skip tiles the webview has cached (e.g. watermarked ones).
 const TILE_VERSION = 2;
-const tileUrl = (dark: boolean) =>
-  `/api/tiles/${dark ? 'dark' : 'light'}/{z}/{x}/{y}{r}?v=${TILE_VERSION}`;
+// Always the light map, even in dark mode: it's easier to read. The pins,
+// tooltips and panels around it still follow the theme.
+const TILE_URL = `/api/tiles/light/{z}/{x}/{y}{r}?v=${TILE_VERSION}`;
 
 /**
  * Loads tiles with `fetch` rather than plain <img> requests: Devvit only adds
@@ -81,10 +81,8 @@ const showArea = (instance: L.Map, area: MapArea, animate: boolean) => {
 };
 
 export const MapView = ({ data }: { data: InitResponse | null }) => {
-  const { dark } = useTheme();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
-  const tiles = useRef<L.TileLayer | null>(null);
   const [open, setOpen] = useState<FoodReview | null>(null);
   const [showInfo, setShowInfo] = useState(false);
   const [area, setArea] = useState(areaCache);
@@ -118,6 +116,7 @@ export const MapView = ({ data }: { data: InitResponse | null }) => {
       worldCopyJump: true,
     }).setView(...WORLD_VIEW);
     if (areaCache) showArea(instance, areaCache, false);
+    new FetchTileLayer(TILE_URL, { maxZoom: 19 }).addTo(instance);
     L.control.zoom({ position: 'bottomright' }).addTo(instance);
     // Tapping the map closes the info panel.
     instance.on('click', () => setShowInfo(false));
@@ -129,19 +128,8 @@ export const MapView = ({ data }: { data: InitResponse | null }) => {
       resize.disconnect();
       instance.remove();
       map.current = null;
-      tiles.current = null;
     };
   }, []);
-
-  // Light or dark tiles to match the palette.
-  useEffect(() => {
-    const instance = map.current;
-    if (!instance) return;
-    tiles.current?.remove();
-    tiles.current = new FetchTileLayer(tileUrl(dark), { maxZoom: 19 }).addTo(
-      instance
-    );
-  }, [dark]);
 
   // No pins yet: open on the subreddit's area (pins take over once there are some).
   useEffect(() => {

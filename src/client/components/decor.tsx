@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { MEDAL_IMAGES, PODIUM_IMAGE } from '../lib/art';
 
 /**
  * Soft layered waves in the theme colour, for the bottom of a page or behind
@@ -7,12 +8,15 @@ import type { CSSProperties } from 'react';
 export const Waves = ({
   className = '',
   flip = false,
+  style,
 }: {
   className?: string;
   /** Upside down, for the top of a box. */
   flip?: boolean;
+  style?: CSSProperties;
 }) => (
   <svg
+    style={style}
     viewBox="0 0 400 120"
     preserveAspectRatio="none"
     aria-hidden
@@ -36,17 +40,7 @@ export const Waves = ({
   </svg>
 );
 
-/** Gold, silver and bronze, for places 1 to 3. */
-const MEDAL_COLORS: Record<
-  number,
-  { face: string; ring: string; ribbon: [string, string] }
-> = {
-  1: { face: '#FFC83D', ring: '#E39E00', ribbon: ['#F59E0B', '#C77700'] },
-  2: { face: '#D3DAE2', ring: '#97A3B0', ribbon: ['#A4B0BD', '#6F7C8A'] },
-  3: { face: '#F2995E', ring: '#C2652A', ribbon: ['#EA7C3C', '#B4501D'] },
-};
-
-/** Medal with a ribbon and its place number (1 to 3). */
+/** Medal image for places 1 to 3 (nothing for other places). */
 export const Medal = ({
   rank,
   className = '',
@@ -54,169 +48,105 @@ export const Medal = ({
   rank: number;
   className?: string;
 }) => {
-  const colors = MEDAL_COLORS[rank];
-  if (!colors) return null;
+  const src = MEDAL_IMAGES[rank];
+  if (!src) return null;
   return (
-    <svg
-      viewBox="0 0 40 48"
-      role="img"
-      aria-label={`Place ${rank}`}
-      className={className}
-    >
-      {/* Ribbon tails behind the medal. */}
-      <path d="M11 26 6 44l6-3 4 5 5-17Z" fill={colors.ribbon[1]} />
-      <path d="M29 26l5 18-6-3-4 5-5-17Z" fill={colors.ribbon[0]} />
-      <circle cx="20" cy="19" r="15" fill={colors.ring} />
-      <circle cx="20" cy="19" r="11.5" fill={colors.face} />
-      <circle
-        cx="20"
-        cy="19"
-        r="11.5"
-        fill="none"
-        stroke="#fff"
-        strokeOpacity="0.45"
-      />
-      <text
-        x="20"
-        y="19.5"
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontSize="14"
-        fontWeight="800"
-        fill="#fff"
-        style={{ paintOrder: 'stroke' }}
-        stroke={colors.ring}
-        strokeWidth="1.5"
-      >
-        {rank}
-      </text>
-    </svg>
+    <img
+      src={src}
+      width={260}
+      height={355}
+      alt={`Place ${rank}`}
+      draggable={false}
+      className={`object-contain ${className}`}
+    />
   );
 };
 
-/** Two leafy branches curving up around the winner's medal. */
-const Laurel = ({ className = '' }: { className?: string }) => {
-  // Points along the left branch (bottom to top) and each leaf's tilt.
-  const leaves = [
-    { x: 22, y: 58, r: -70 },
-    { x: 13, y: 49, r: -50 },
-    { x: 8, y: 37, r: -30 },
-    { x: 7, y: 25, r: -12 },
-    { x: 10, y: 13, r: 8 },
-  ];
-  const branch = (
-    <>
-      <path
-        d="M30 64C14 58 4 42 9 8"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      {leaves.map((l) => (
-        // A pointed leaf, pointing away from the stem.
-        <path
-          key={l.y}
-          d="M0 0C-4-3-5-8-1-13 3-9 4-4 0 0Z"
-          fill="currentColor"
-          transform={`translate(${l.x} ${l.y}) rotate(${l.r - 20}) scale(0.95)`}
-        />
-      ))}
-      {leaves.slice(1).map((l) => (
-        <path
-          key={`in${l.y}`}
-          d="M0 0C-4-3-5-8-1-13 3-9 4-4 0 0Z"
-          fill="currentColor"
-          opacity="0.75"
-          transform={`translate(${l.x + 1} ${l.y}) rotate(${l.r + 45}) scale(0.8)`}
-        />
-      ))}
-    </>
-  );
-  return (
-    <svg viewBox="0 0 120 66" aria-hidden className={className}>
-      {branch}
-      <g transform="translate(120 0) scale(-1 1)">{branch}</g>
-    </svg>
-  );
-};
+/** A spray of three soft leaves fanning up from the bottom centre. */
+const LeafSpray = ({
+  className = '',
+  style,
+}: {
+  className?: string;
+  style?: CSSProperties;
+}) => (
+  <svg viewBox="0 0 60 80" aria-hidden className={className} style={style}>
+    <path
+      d="M30 80C10 64 2 40 10 14c14 16 22 40 20 66Z"
+      fill="currentColor"
+      opacity="0.7"
+    />
+    <path d="M30 80C24 56 26 28 38 4c10 22 6 52-8 76Z" fill="currentColor" />
+    <path
+      d="M30 80c6-20 16-36 30-44 0 20-12 36-30 44Z"
+      fill="currentColor"
+      opacity="0.8"
+    />
+  </svg>
+);
 
-/** Little confetti dashes scattered around the podium. */
-const CONFETTI: CSSProperties[] = [
-  { left: '8%', top: '38%', rotate: '-30deg' },
-  { left: '18%', top: '16%', rotate: '40deg' },
-  { left: '30%', top: '6%', rotate: '-10deg' },
-  { right: '9%', top: '34%', rotate: '25deg' },
-  { right: '20%', top: '12%', rotate: '-40deg' },
-  { right: '31%', top: '4%', rotate: '15deg' },
-];
-
-const PODIUM = [
-  {
-    rank: 2,
-    medal: 'h-13 w-13 text-xl',
-    block:
-      'h-14 from-slate-200 to-slate-300 dark:from-slate-500/70 dark:to-slate-700/70',
-  },
-  {
-    rank: 1,
-    medal: 'h-16 w-16 text-3xl',
-    block:
-      'h-22 from-amber-200 to-amber-300 dark:from-amber-500/75 dark:to-amber-700/75',
-  },
-  {
-    rank: 3,
-    medal: 'h-12 w-12 text-lg',
-    block:
-      'h-10 from-orange-200 to-orange-300 dark:from-orange-500/70 dark:to-orange-700/70',
-  },
+/** Confetti dashes around the podium, as % of its box, with a tilt. */
+const PODIUM_CONFETTI: CSSProperties[] = [
+  { left: '15%', top: '30%', rotate: '55deg' },
+  { left: '9%', top: '58%', rotate: '25deg' },
+  { left: '30%', top: '12%', rotate: '-35deg' },
+  { right: '13%', top: '50%', rotate: '-50deg' },
+  { right: '26%', top: '16%', rotate: '30deg' },
+  { right: '6%', top: '30%', rotate: '70deg' },
 ];
 
 /**
- * Winners' podium (2nd, 1st, 3rd) over soft waves. Places nobody has
- * reached yet are faded.
+ * The podium picture over a soft glow, with leaf sprays and confetti drawn
+ * in the theme colour so they suit light and dark mode.
  */
-export const Podium = ({ places }: { places: number }) => (
-  <div aria-hidden className="relative isolate h-48 overflow-hidden">
-    <Waves className="absolute inset-x-0 bottom-0 -z-10 h-36 w-full text-cta" />
-    {CONFETTI.map((style, i) => (
+export const PodiumArt = ({ className = '' }: { className?: string }) => (
+  <div aria-hidden className={`relative isolate ${className}`}>
+    <LeafSpray
+      className="absolute bottom-0 left-[1%] -z-10 w-[13%] text-amber-300/60 dark:text-amber-500/40"
+      style={{ rotate: '-18deg' }}
+    />
+    <LeafSpray
+      className="absolute right-[1%] bottom-0 -z-10 w-[13%] -scale-x-100 text-amber-300/60 dark:text-amber-500/40"
+      style={{ rotate: '18deg' }}
+    />
+    {PODIUM_CONFETTI.map((style, i) => (
       <span
         key={i}
-        className="absolute h-1 w-3.5 rounded-full bg-cta/50"
+        className={`absolute -z-10 h-[3%] min-h-1 w-[4.5%] rounded-full ${
+          i % 2 ? 'bg-cta/60' : 'bg-amber-400/80'
+        }`}
         style={style}
       />
     ))}
-    <div className="absolute inset-x-0 bottom-0 flex items-end justify-center px-6">
-      {PODIUM.map(({ rank, medal, block }) => {
-        const colors = MEDAL_COLORS[rank];
-        return (
-          <div
-            key={rank}
-            className={`flex w-full max-w-28 flex-col items-center transition-opacity ${
-              rank > places ? 'opacity-35 grayscale' : ''
-            }`}
-          >
-            <div className="relative z-10 -mb-3 flex flex-col items-center">
-              {rank === 1 && (
-                <Laurel className="absolute -top-2 left-1/2 h-18 w-28 -translate-x-1/2 text-amber-500" />
-              )}
-              <span
-                className={`relative flex items-center justify-center rounded-full border-4 font-extrabold text-white shadow-lg ${medal}`}
-                style={{
-                  background: colors?.face,
-                  borderColor: colors?.ring,
-                  textShadow: `0 1px 2px ${colors?.ring ?? '#0004'}`,
-                }}
-              >
-                {rank}
-              </span>
-            </div>
-            <div
-              className={`w-full rounded-t-xl bg-gradient-to-b shadow-inner ${block}`}
-            />
-          </div>
-        );
-      })}
-    </div>
+    <img
+      {...PODIUM_IMAGE}
+      alt=""
+      draggable={false}
+      className="block h-auto w-full"
+    />
+  </div>
+);
+
+/**
+ * Full-width glow and waves behind the ranking hero, header included. Both
+ * fade out at the bottom, so there's no edge where the list starts. Place
+ * it as the first child of a `relative isolate` screen.
+ */
+export const HeroBackdrop = () => (
+  <div
+    aria-hidden
+    className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80"
+    style={{
+      background:
+        'radial-gradient(ellipse 90% 75% at 50% 42%, color-mix(in srgb, var(--cta) 18%, transparent), transparent 72%)',
+    }}
+  >
+    <Waves
+      className="absolute inset-x-0 top-24 h-44 w-full text-cta"
+      style={{
+        maskImage: 'linear-gradient(to bottom, #000 45%, transparent)',
+        WebkitMaskImage: 'linear-gradient(to bottom, #000 45%, transparent)',
+      }}
+    />
   </div>
 );

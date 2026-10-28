@@ -165,7 +165,8 @@
 
 .leaflet-container {
   font-family: var(--font-sans);
-  background: var(--soft);
+  /* The map is always light, so its loading backdrop is too. */
+  background: #f2efe9;
 }
 
 /* Score bars fill from the left (RankedList). */

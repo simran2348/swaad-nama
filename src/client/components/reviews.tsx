@@ -27,7 +27,7 @@ const BAR_COLORS: Record<number, string> = {
 /** Place number: a medal for the top three, else a plain circle. */
 const RankBadge = ({ rank }: { rank: number }) =>
   rank <= 3 ? (
-    <Medal rank={rank} className="h-12 w-10 drop-shadow-sm" />
+    <Medal rank={rank} className="h-12 w-9 drop-shadow-sm" />
   ) : (
     <span
       aria-label={`Place ${rank}`}

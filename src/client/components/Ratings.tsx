@@ -4,15 +4,20 @@ import type {
   FoodCategory,
   FoodReview,
 } from '../../shared/api';
-import { normalizeName, rankRatings } from '../../shared/food';
+import { normalizeName } from '../../shared/food';
 import { fetchCategories } from '../lib/api';
 import { riseDelay } from '../lib/motion';
 import { forgetMyPosts } from '../lib/postCache';
-import { Podium } from './decor';
+import { HeroBackdrop, PodiumArt } from './decor';
 import { PlateIcon } from './icons';
 import { ReviewViewer } from './ReviewViewer';
 import { RankedList, UserReviews } from './reviews';
-import { EMPTY_RATINGS_IMAGE, useImageLoaded } from '../lib/art';
+import {
+  EMPTY_RATINGS_IMAGE,
+  RANKING_IMAGES,
+  useImageLoaded,
+  useImagesLoaded,
+} from '../lib/art';
 import { EmptyMascot } from './EmptyMascot';
 import { BackButton, EmptyState, LoadingState, ScreenHeader } from './ui';
 import { Photo } from './Photo';
@@ -80,16 +85,8 @@ const UserCategoryRanking = ({
         if (reviews.length === 0) {
           return <EmptyState>No {food} ratings yet.</EmptyState>;
         }
-        const places = Math.max(
-          0,
-          ...rankRatings(reviews.map((r) => r.rating))
-        );
         return (
           <>
-            {/* Full-width hero under the header. */}
-            <div className="-mx-4 -mt-3">
-              <Podium places={places} />
-            </div>
             <RankedList
               rows={reviews.map((r) => ({
                 key: r.id,
@@ -129,6 +126,8 @@ export const Ratings = ({ foods }: { foods: string[] }) => {
   const [result, setResult] = useState<{ for: string | null } & Result>();
   // Preloaded so the empty state never shows before its picture.
   const imageReady = useImageLoaded(EMPTY_RATINGS_IMAGE.src);
+  // Starts loading the podium and medals now, so a category opens quickly.
+  const rankingArtReady = useImagesLoaded(RANKING_IMAGES);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,25 +149,42 @@ export const Ratings = ({ foods }: { foods: string[] }) => {
 
   if (category) {
     return (
-      <div className="flex h-full min-h-0 flex-1 flex-col">
-        <ScreenHeader
-          title={category}
-          subtitle={`${whose} ratings`}
-          left={<BackButton onClick={() => setCategory(null)} />}
-        />
+      <div className="relative isolate flex h-full min-h-0 flex-1 flex-col">
+        <HeroBackdrop />
+        {/* Hero: the title sits on the page background above the podium,
+            with no separate header bar, to leave room for the list. */}
+        <section className="shrink-0">
+          <div className="flex items-start gap-1.5 px-3 pt-3">
+            <BackButton onClick={() => setCategory(null)} />
+            <div className="min-w-0 pt-0.5">
+              <h1 className="truncate text-xl leading-tight font-extrabold text-ink">
+                {category}
+              </h1>
+              <p className="truncate text-sm text-muted">{whose} ratings</p>
+            </div>
+          </div>
+          {rankingArtReady && (
+            <PodiumArt className="rise mx-auto -mt-3 w-[calc(100%-2rem)] max-w-sm" />
+          )}
+        </section>
         <main className="scroll-area flex flex-1 flex-col gap-3 px-4 pt-3 pb-6">
-          {owner && (
-            <UserCategoryRanking
-              username={owner}
-              food={category}
-              editable={isOwn}
-              foods={foods}
-              refreshKey={version}
-              onChanged={() => {
-                forgetMyPosts();
-                setVersion((v) => v + 1);
-              }}
-            />
+          {!rankingArtReady ? (
+            // Wait for the podium and medals so the screen appears complete.
+            <LoadingState />
+          ) : (
+            owner && (
+              <UserCategoryRanking
+                username={owner}
+                food={category}
+                editable={isOwn}
+                foods={foods}
+                refreshKey={version}
+                onChanged={() => {
+                  forgetMyPosts();
+                  setVersion((v) => v + 1);
+                }}
+              />
+            )
           )}
         </main>
       </div>

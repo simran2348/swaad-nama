@@ -14,6 +14,22 @@ export const EMPTY_RATINGS_IMAGE = {
   height: 288,
 };
 
+/** Ranking hero (Ratings → a category): the podium, with its pixel size. */
+export const PODIUM_IMAGE = { src: '/podium.png', width: 781, height: 319 };
+
+/** Medals for places 1 to 3 in a ranking. */
+export const MEDAL_IMAGES: Record<number, string> = {
+  1: '/p1.png',
+  2: '/p2.png',
+  3: '/p3.png',
+};
+
+/** Everything the ranking screen draws, so it can wait for all of it. */
+export const RANKING_IMAGES = [
+  PODIUM_IMAGE.src,
+  ...Object.values(MEDAL_IMAGES),
+];
+
 /** Shown when a user has no Reddit avatar (or it fails to load). */
 export const FALLBACK_AVATAR_URL = '/snoo.png';
 
@@ -36,4 +52,28 @@ export const useImageLoaded = (src: string | null) => {
     };
   }, [src]);
   return src !== null && loadedSrc === src;
+};
+
+/**
+ * True once every image in `srcs` has downloaded (or failed to). Pass a
+ * constant array (like {@link RANKING_IMAGES}), not one built each render.
+ */
+export const useImagesLoaded = (srcs: readonly string[]) => {
+  const [loaded, setLoaded] = useState<readonly string[] | null>(null);
+  useEffect(() => {
+    let left = srcs.length;
+    const images = srcs.map((src) => {
+      const img = new Image();
+      img.onload = img.onerror = () => {
+        left--;
+        if (left === 0) setLoaded(srcs);
+      };
+      img.src = src;
+      return img;
+    });
+    return () => {
+      for (const img of images) img.onload = img.onerror = null;
+    };
+  }, [srcs]);
+  return srcs.length === 0 || loaded === srcs;
 };
