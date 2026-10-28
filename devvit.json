@@ -26,7 +26,8 @@
         "goo.gl"
       ]
     },
-    "reddit": true
+    "reddit": true,
+    "journeys": true
   },
   "menu": {
     "items": [

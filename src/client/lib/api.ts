@@ -1,6 +1,7 @@
 import type {
   AdminDeletePostsResponse,
   AdminResetRatingsResponse,
+  AdminStatsResponse,
   FoodReview,
   PostDetailResponse,
   UpdateReviewRequest,
@@ -120,6 +121,9 @@ export const deleteReview = (id: string) =>
   request<{ status: 'ok' }>(`/api/reviews/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
+
+export const fetchAdminStats = (days: 7 | 30) =>
+  request<AdminStatsResponse>(`/api/admin/stats?days=${days}`);
 
 export const adminDeletePosts = (ids: string) =>
   request<AdminDeletePostsResponse>('/api/admin/delete-posts', {

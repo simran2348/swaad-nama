@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { CloseIcon, SearchIcon } from './icons';
+import { track } from '../lib/track';
 
 /**
  * Username search box. While a user is being viewed, shows them as a chip
@@ -22,6 +23,7 @@ export const UserSearch = ({
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!name) return;
+    track('user_search');
     onSearch(name);
     setInput('');
   };

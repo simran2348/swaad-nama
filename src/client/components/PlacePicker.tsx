@@ -4,6 +4,7 @@ import { placeFromLink, searchPlaces } from '../lib/api';
 import { PLACE_SEARCH_ENABLED } from '../lib/features';
 import { Spinner } from './ui';
 import { CloseIcon, PinIcon } from './icons';
+import { track } from '../lib/track';
 
 type Place = PlaceSearchResponse['places'][number];
 
@@ -73,6 +74,7 @@ export const PlacePicker = ({
         lat: place.lat,
         lon: place.lon,
       });
+      track('place_link_used');
       setLinkOpen(false);
       setLink('');
     } catch (err) {

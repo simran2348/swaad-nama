@@ -3,6 +3,7 @@ import type { TopRatedResponse } from '../../shared/api';
 import { fetchTopRated } from '../lib/api';
 import { riseDelay } from '../lib/motion';
 import { PlateIcon, StarIcon, TrophyIcon } from './icons';
+import { track } from '../lib/track';
 
 /** Last result, shown straight away while a fresh one loads. */
 let topRatedCache: TopRatedResponse | null = null;
@@ -67,7 +68,10 @@ export const TopRatedRow = ({
                 style={riseDelay(i)}
               >
                 <button
-                  onClick={() => onOpen(food.food)}
+                  onClick={() => {
+                    track('top_rated_open');
+                    onOpen(food.food);
+                  }}
                   aria-label={`${food.food}: ${food.average} out of 10 from ${food.count} ratings`}
                   className="relative isolate block h-full w-full transform-gpu overflow-hidden rounded-2xl bg-cta/15 text-left shadow-md cursor-pointer transition hover:-translate-y-0.5 hover:shadow-lg"
                 >

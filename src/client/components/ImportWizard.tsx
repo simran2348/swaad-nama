@@ -6,6 +6,7 @@ import { createReview, importPost } from '../lib/api';
 import { draftToRequest, emptyDraft, isDraftComplete } from '../lib/draft';
 import { useTheme } from '../lib/theme';
 import { Carousel } from './Carousel';
+import { ratingJourney } from '../lib/track';
 import { ThemeSurface } from './FoodBackground';
 import { ReviewFields, type ReviewDraft } from './ReviewFields';
 import {
@@ -209,7 +210,11 @@ export const ImportWizard = ({
             </button>
             <button
               disabled={!isDraftComplete(item.draft) || submitting}
-              onClick={() => (isLast ? void submit() : setStep(step + 1))}
+              onClick={() => {
+                if (isLast) return void submit();
+                ratingJourney.progress(step + 1, items.length);
+                setStep(step + 1);
+              }}
               className="flex flex-1 items-center justify-center gap-2 rounded-full bg-cta px-4 py-2.5 font-bold text-cta-ink shadow-md cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? (

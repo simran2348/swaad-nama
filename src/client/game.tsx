@@ -25,6 +25,7 @@ import { MyList } from './components/MyList';
 import { Ratings } from './components/Ratings';
 import { Settings } from './components/Settings';
 import { fetchInit } from './lib/api';
+import { trackAppReady } from './lib/track';
 import { NAV_HEIGHT, NavSlotContext } from './lib/navSlot';
 import { initAppTheme, syncMode } from './lib/theme';
 
@@ -93,6 +94,7 @@ export const App = () => {
         if (!modeSynced.current) {
           modeSynced.current = true;
           syncMode(res.mode);
+          trackAppReady();
         }
       })
       .catch((err: Error) => setError(err.message));

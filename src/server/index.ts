@@ -4,6 +4,7 @@ import { createServer, getServerPort } from '@devvit/web/server';
 import { api } from './routes/api';
 import { menu } from './routes/menu';
 import { triggers } from './routes/triggers';
+import { telemetryRoutes } from './routes/telemetry';
 
 const app = new Hono();
 const internal = new Hono();
@@ -11,6 +12,8 @@ const internal = new Hono();
 internal.route('/menu', menu);
 internal.route('/triggers', triggers);
 
+// Devvit Journeys (analytics) for the client SDK.
+app.route('/api/telemetry', telemetryRoutes);
 app.route('/api', api);
 app.route('/internal', internal);
 

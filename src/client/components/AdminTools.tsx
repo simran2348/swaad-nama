@@ -4,6 +4,7 @@ import type { AdminDeletePostsResponse } from '../../shared/api';
 import { adminDeletePosts, adminResetRatings } from '../lib/api';
 import { Spinner } from './ui';
 import { DripHeader } from './DripHeader';
+import { AdminStats } from './AdminStats';
 import { CheckCircleIcon, ShieldIcon, XCircleIcon } from './icons';
 
 const inputClass =
@@ -187,10 +188,15 @@ export const AdminScreen = () => (
     <main className="scroll-area flex flex-1 flex-col pb-8">
       <DripHeader title="ADMIN" />
       <div className="flex flex-col gap-8 px-4">
-        <p className="text-center text-sm text-muted">
-          Only visible to you. These actions can't be undone.
-        </p>
-        <AdminTools />
+        <p className="text-center text-sm text-muted">Only visible to you.</p>
+        <AdminStats />
+        <div className="flex flex-col gap-3 border-t border-line pt-6">
+          <h2 className="px-1 text-lg font-extrabold text-ink">Tools</h2>
+          <p className="-mt-2 px-1 text-xs text-muted">
+            These actions can't be undone.
+          </p>
+          <AdminTools />
+        </div>
       </div>
     </main>
   </div>

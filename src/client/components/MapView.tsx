@@ -8,6 +8,7 @@ import { PLACE_SEARCH_ENABLED } from '../lib/features';
 import { InfoIcon } from './icons';
 import { ReviewViewer } from './ReviewViewer';
 import { ScreenHeader } from './ui';
+import { track } from '../lib/track';
 
 // Tiles are proxied through our server (see server/core/external.ts).
 // Bump `v` to skip tiles the webview has cached (e.g. watermarked ones).
@@ -156,7 +157,10 @@ export const MapView = ({ data }: { data: InitResponse | null }) => {
           direction: 'top',
           className: 'map-tooltip',
         })
-        .on('click', () => setOpen(review))
+        .on('click', () => {
+          track('map_pin_open');
+          setOpen(review);
+        })
         .addTo(layer);
     }
     if (points.length === 1 && points[0]) {

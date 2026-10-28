@@ -4,6 +4,7 @@ import { fetchTrending } from '../lib/api';
 import { riseDelay } from '../lib/motion';
 import { TrendingIcon, UpvoteIcon } from './icons';
 import { PostViewer } from './PostViewer';
+import { track } from '../lib/track';
 
 /** Loaded once per app session, so switching tabs doesn't refetch it. */
 let trendingCache: TrendingResponse | null = null;
@@ -83,7 +84,10 @@ export const TrendingRow = () => {
                 style={riseDelay(i)}
               >
                 <button
-                  onClick={() => setViewing(post.postId)}
+                  onClick={() => {
+                    track('trending_open');
+                    setViewing(post.postId);
+                  }}
                   aria-label={`${post.title}, by u/${post.author}, ${post.score} upvotes`}
                   className="relative isolate block h-full w-full transform-gpu overflow-hidden rounded-2xl bg-black text-left shadow-md cursor-pointer transition hover:-translate-y-0.5 hover:shadow-lg"
                 >

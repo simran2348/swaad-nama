@@ -6,6 +6,7 @@ import { riseDelay } from '../lib/motion';
 import { HeroBackdrop } from './decor';
 import { PlateIcon, StarIcon } from './icons';
 import { BackButton, EmptyState, LoadingState } from './ui';
+import { track } from '../lib/track';
 
 type Result =
   { ok: true; data: FoodRatersResponse } | { ok: false; error: string };
@@ -111,7 +112,10 @@ export const FoodRaters = ({
             {current.data.raters.map((rater, i) => (
               <li key={rater.username} className="rise" style={riseDelay(i)}>
                 <button
-                  onClick={() => onOpenUser(rater.username)}
+                  onClick={() => {
+                    track('rater_open');
+                    onOpenUser(rater.username);
+                  }}
                   aria-label={`u/${rater.username}: ${rater.count} ${food} ratings, top rating ${rater.best.rating} at ${rater.best.place}`}
                   className="flex w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface text-left shadow-sm backdrop-blur cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md"
                 >

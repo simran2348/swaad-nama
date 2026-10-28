@@ -7,6 +7,7 @@ import type {
   FoodReview,
   AdminDeletePostsResponse,
   AdminResetRatingsResponse,
+  AdminStatsResponse,
   PostDetailResponse,
   UpdateReviewRequest,
   ErrorResponse,
@@ -28,6 +29,13 @@ import type {
   UserReviewsResponse,
 } from '../../shared/api';
 import { isAdmin } from '../../shared/admin';
+import { isTrackEvent } from '../../shared/stats';
+import {
+  backfillRater,
+  getAdminStats,
+  recordEvent,
+  recordOpen,
+} from '../core/stats';
 import { TEAM_USERNAMES } from '../../shared/team';
 import { isAppMode, isPaletteId } from '../../shared/theme';
 import { cleanVibes, isValidBudget, isValidRating } from '../../shared/food';
@@ -133,6 +141,11 @@ api.get('/init', async (c) => {
     if (username) {
       await indexUserReviews(username, myList).catch((err: unknown) =>
         console.error('Index ratings error:', err)
+      );
+      // Analytics: active today (and new), plus their rating count.
+      await recordOpen(username);
+      await backfillRater(username, myList.length).catch((err: unknown) =>
+        console.error('Count ratings error:', err)
       );
     }
     return c.json<InitResponse>({
@@ -630,6 +643,39 @@ api.get('/posts/:id', async (c) => {
       { status: 'error', message: errorMessage(error) },
       404
     );
+  }
+});
+
+/** Analytics: counts a feature tap or an add-to-tier step. */
+api.post('/stats/event', async (c) => {
+  const body: unknown = await c.req.json().catch(() => null);
+  const event =
+    typeof body === 'object' && body !== null
+      ? Reflect.get(body, 'event')
+      : undefined;
+  if (!isTrackEvent(event)) {
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Unknown event' },
+      400
+    );
+  }
+  await recordEvent(event);
+  return c.json({ status: 'ok' });
+});
+
+/** Admin only: the analytics overview. */
+api.get('/admin/stats', async (c) => {
+  if (!isAdmin(await reddit.getCurrentUsername())) {
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Not allowed' },
+      403
+    );
+  }
+  const days = Number(c.req.query('days')) === 30 ? 30 : 7;
+  try {
+    return c.json<AdminStatsResponse>(await getAdminStats(days));
+  } catch (error) {
+    return failure(c, error, 'admin stats');
   }
 });
 

@@ -4,6 +4,7 @@ import type { MyPostsResponse } from '../../shared/api';
 import { tierFor } from '../../shared/food';
 import { fetchMyPosts } from '../lib/api';
 import { ImportWizard } from './ImportWizard';
+import { ratingJourney, track } from '../lib/track';
 import { EMPTY_LIST_IMAGE, useImageLoaded } from '../lib/art';
 import { formatDate } from '../lib/format';
 import { postCache, type Post } from '../lib/postCache';
@@ -77,12 +78,15 @@ export const PostPicker = ({
       .finally(() => setLoading(false));
   };
 
-  const toggle = (postId: string) =>
+  const toggle = (postId: string) => {
+    // The first pick starts the add flow (for the Admin funnel).
+    if (selected.length === 0) track('add_select');
     setSelected((ids) =>
       ids.includes(postId)
         ? ids.filter((id) => id !== postId)
         : [...ids, postId]
     );
+  };
 
   return (
     <section className="flex flex-1 flex-col gap-2">
@@ -215,7 +219,11 @@ export const PostPicker = ({
                 Cancel
               </button>
               <button
-                onClick={() => setImporting(true)}
+                onClick={() => {
+                  track('add_start');
+                  ratingJourney.start();
+                  setImporting(true);
+                }}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-cta px-4 py-2.5 font-bold text-cta-ink shadow-md cursor-pointer hover:brightness-95 transition"
               >
                 Add {selected.length} to tier
@@ -230,8 +238,13 @@ export const PostPicker = ({
         <ImportWizard
           postIds={selected}
           foods={foods}
-          onCancel={() => setImporting(false)}
+          onCancel={() => {
+            ratingJourney.end(false);
+            setImporting(false);
+          }}
           onDone={(added) => {
+            if (added.length > 0) track('add_complete');
+            ratingJourney.end(added.length > 0);
             setImporting(false);
             setSelected([]);
             const ratings = new Map(added.map((a) => [a.postId, a.rating]));

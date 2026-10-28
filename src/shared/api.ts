@@ -250,6 +250,33 @@ export type PlaceLinkResponse = {
   };
 };
 
+/** The Admin overview: totals, recent days and usage. */
+export type AdminStatsResponse = {
+  totals: {
+    /** Every rating saved. */
+    ratings: number;
+    categories: number;
+    /** People with at least one rating. */
+    raters: number;
+    /** People who've opened the app since tracking began. */
+    users: number;
+  };
+  /** Oldest first, ending today (India time). */
+  days: {
+    date: string;
+    activeUsers: number;
+    newUsers: number;
+    ratings: number;
+  }[];
+  topRaters: { username: string; count: number }[];
+  /** Totals over the same days, by event name (see shared/stats). */
+  features: { event: string; count: number }[];
+  /** Add-to-tier steps in order, over the same days. */
+  funnel: { event: string; count: number }[];
+  edits: number;
+  deletes: number;
+};
+
 export type CreateReviewResponse = {
   review: FoodReview;
   postUrl: string | null;

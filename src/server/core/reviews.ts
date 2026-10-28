@@ -6,6 +6,7 @@ import type {
   TopRatedFood,
 } from '../../shared/api';
 import { cleanVibes, isValidBudget, normalizeName } from '../../shared/food';
+import { countRater, recordEvent } from './stats';
 
 const keys = {
   review: (id: string) => `review:${id}`,
@@ -113,6 +114,8 @@ export const saveReview = async (
   // Track foods by popularity and keep the first-seen display name.
   await countFood(review.food, 1);
   await indexReview(review);
+  await countRater(review.username, 1);
+  await recordEvent('rating_added');
 
   return review;
 };
@@ -169,6 +172,7 @@ export const updateReview = async (
     await unindexReview(review);
   }
   await indexReview({ id: review.id, food: edit.food, rating: edit.rating });
+  await recordEvent('rating_edited');
   // Spread without the optional fields, then add the edited ones back if set.
   const { budget: _oldBudget, location: _oldLocation, ...rest } = review;
   const { budget, location, ...fields } = edit;
@@ -186,6 +190,8 @@ export const deleteReview = async (review: FoodReview) => {
   await redis.zRem(keys.userList(review.username), [review.id]);
   await countFood(review.food, -1);
   await unindexReview(review);
+  await countRater(review.username, -1);
+  await recordEvent('rating_deleted');
 };
 
 export const getUserReviews = async (
