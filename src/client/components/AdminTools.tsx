@@ -2,11 +2,12 @@ import { showToast } from '@devvit/web/client';
 import { useState, type ComponentType, type ReactNode } from 'react';
 import type { AdminDeletePostsResponse } from '../../shared/api';
 import { adminDeletePosts, adminResetRatings } from '../lib/api';
-import { ScreenHeader, Spinner } from './ui';
+import { Spinner } from './ui';
+import { DripHeader } from './DripHeader';
 import { CheckCircleIcon, ShieldIcon, XCircleIcon } from './icons';
 
 const inputClass =
-  'w-full rounded-lg border border-line bg-field px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-rose-500';
+  'w-full rounded-xl border border-line bg-field px-3.5 py-2.5 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-rose-500';
 
 const STATUS: Record<
   string,
@@ -57,7 +58,7 @@ const DangerButton = ({
         onConfirm();
       }}
       onBlur={() => setArmed(false)}
-      className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`flex w-full items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-bold cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
         armed
           ? 'bg-rose-600 text-white'
           : 'border border-rose-500/60 text-rose-600 dark:text-rose-300'
@@ -108,37 +109,35 @@ export const AdminTools = () => {
   };
 
   return (
-    <section className="rounded-2xl border-2 border-rose-500/40 bg-surface p-4 shadow-sm backdrop-blur">
-      <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
         <label
           htmlFor="admin-post-ids"
-          className="text-sm font-semibold text-ink"
+          className="px-1 text-base font-extrabold text-ink"
         >
           Delete posts
         </label>
+        <p className="px-1 text-xs leading-relaxed text-muted">
+          Comma-separated ids or links. Only a post's author can delete it, so
+          users' posts are mod-removed instead: they leave the subreddit and
+          SwaadNama, and their ratings are removed too.
+        </p>
         <textarea
           id="admin-post-ids"
-          className={`${inputClass} min-h-20`}
+          className={`${inputClass} min-h-24`}
           value={ids}
           placeholder="abc123, t3_def456, https://www.reddit.com/r/…/comments/…"
           onChange={(e) => setIds(e.target.value)}
         />
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-xs text-muted">
-            Comma-separated ids or links. Only a post's author can delete it, so
-            users' posts are mod-removed instead: they leave the subreddit and
-            SwaadNama, and their ratings are removed too.
-          </p>
-          <DangerButton
-            disabled={!ids.trim()}
-            busy={deleting}
-            onConfirm={() => void deletePosts()}
-          >
-            Delete
-          </DangerButton>
-        </div>
+        <DangerButton
+          disabled={!ids.trim()}
+          busy={deleting}
+          onConfirm={() => void deletePosts()}
+        >
+          Delete posts
+        </DangerButton>
         {results && results.length > 0 && (
-          <ul className="mt-1 flex flex-col gap-1 rounded-lg bg-field p-2 text-xs">
+          <ul className="mt-1 flex flex-col gap-1.5 px-1 text-xs">
             {results.map((r) => (
               <li key={r.id} className="flex flex-wrap gap-x-2">
                 <span className="font-mono font-semibold text-ink">{r.id}</span>
@@ -150,46 +149,49 @@ export const AdminTools = () => {
         )}
       </div>
 
-      <div className="mt-5 flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <label
           htmlFor="admin-reset-user"
-          className="text-sm font-semibold text-ink"
+          className="px-1 text-base font-extrabold text-ink"
         >
           Reset a user's ratings
         </label>
-        <div className="flex gap-2">
-          <input
-            id="admin-reset-user"
-            className={inputClass}
-            value={username}
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder="username"
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <DangerButton
-            disabled={!username.trim()}
-            busy={resetting}
-            onConfirm={() => void resetRatings()}
-          >
-            Reset
-          </DangerButton>
-        </div>
-        <p className="text-xs text-muted">
+        <p className="px-1 text-xs leading-relaxed text-muted">
           Removes every rating they have. Their Reddit posts aren't touched.
         </p>
+        <input
+          id="admin-reset-user"
+          className={inputClass}
+          value={username}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder="username"
+          onChange={(e) => setUsername(e.target.value)}
+        />
+        <DangerButton
+          disabled={!username.trim()}
+          busy={resetting}
+          onConfirm={() => void resetRatings()}
+        >
+          Reset ratings
+        </DangerButton>
       </div>
-    </section>
+    </div>
   );
 };
 
 /** Admin tab: only shown to the admin account (checked on the server too). */
 export const AdminScreen = () => (
   <div className="flex h-full min-h-0 flex-1 flex-col">
-    <ScreenHeader title="Admin" subtitle="Only visible to you" />
-    <main className="scroll-area flex flex-1 flex-col gap-3 px-4 pt-3 pb-6">
-      <AdminTools />
+    <main className="scroll-area flex flex-1 flex-col pb-8">
+      <DripHeader title="ADMIN" />
+      <div className="flex flex-col gap-8 px-4">
+        <p className="text-center text-sm text-muted">
+          Only visible to you. These actions can't be undone.
+        </p>
+        <AdminTools />
+      </div>
     </main>
   </div>
 );
