@@ -307,6 +307,14 @@
 /* Scrollable screen body. `min-height: 0` lets a flex item shrink below its
    content so it can scroll (iOS Safari won't otherwise); momentum scrolling
    and contained overscroll keep it from dragging the page on iOS. */
+/* Sideways rows (e.g. trending) scroll without a visible bar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .scroll-area {
   min-height: 0;
   overflow-y: auto;

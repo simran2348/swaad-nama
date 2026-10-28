@@ -223,3 +223,17 @@ export const XCircleIcon = ({ className = '' }: IconProps) => (
     <path d="m9 9 6 6M15 9l-6 6" />
   </svg>
 );
+
+/** Upward arrow, for upvotes. */
+export const UpvoteIcon = ({ className = '' }: IconProps) => (
+  <svg {...strokeProps} strokeWidth={2.5} aria-hidden className={className}>
+    <path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" />
+  </svg>
+);
+
+/** Rising line, for "trending". */
+export const TrendingIcon = ({ className = '' }: IconProps) => (
+  <svg {...strokeProps} aria-hidden className={className}>
+    <path d="m3 17 6-6 4 4 8-8M15 7h6v6" />
+  </svg>
+);

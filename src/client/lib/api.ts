@@ -11,6 +11,7 @@ import type {
   ImportPostResponse,
   InitResponse,
   MapAreaResponse,
+  TrendingResponse,
   MyPostsResponse,
   PlaceSearchResponse,
   ProfileResponse,
@@ -67,6 +68,8 @@ export const importPost = (postId: string) =>
   request<ImportPostResponse>(
     `/api/import?${new URLSearchParams({ id: postId })}`
   );
+
+export const fetchTrending = () => request<TrendingResponse>('/api/trending');
 
 export const fetchMapArea = () => request<MapAreaResponse>('/api/map-area');
 

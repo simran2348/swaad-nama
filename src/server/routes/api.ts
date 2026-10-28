@@ -16,6 +16,7 @@ import type {
   PlaceSearchResponse,
   InitResponse,
   MapAreaResponse,
+  TrendingResponse,
   ProfileResponse,
   SaveModeRequest,
   SaveThemeRequest,
@@ -27,6 +28,7 @@ import { cleanVibes, isValidBudget, isValidRating } from '../../shared/food';
 import {
   fetchTile,
   getMapArea,
+  getTrendingPosts,
   getPostDetail,
   importPost,
   listMyPosts,
@@ -281,6 +283,15 @@ api.get('/places', async (c) => {
       { status: 'error', message: errorMessage(error) },
       502
     );
+  }
+});
+
+/** The last day's most upvoted and discussed posts (My List's top row). */
+api.get('/trending', async (c) => {
+  try {
+    return c.json<TrendingResponse>(await getTrendingPosts());
+  } catch (error) {
+    return failure(c, error, 'trending');
   }
 });
 

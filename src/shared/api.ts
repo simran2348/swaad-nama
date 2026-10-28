@@ -160,6 +160,26 @@ export type MyPostsResponse = {
   nextCursor: string | null;
 };
 
+/** A popular recent post, for the trending row on My List. */
+export type TrendingPost = {
+  postId: string;
+  title: string;
+  image: string;
+  author: string;
+  /** Upvotes (Reddit's score). */
+  score: number;
+  comments: number;
+  postedAt: number;
+};
+
+export type TrendingResponse = {
+  /** Where the posts come from. */
+  subredditName: string;
+  /** How far back the posts go: 1, 3 or 7 days (widened on quiet days). */
+  days: number;
+  posts: TrendingPost[];
+};
+
 /** The area a subreddit covers (a mod setting), for framing the map. */
 export type MapArea = {
   name: string;

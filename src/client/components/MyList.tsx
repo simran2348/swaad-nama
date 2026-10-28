@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { InitResponse } from '../../shared/api';
 import { PostPicker } from './PostPicker';
+import { TrendingRow } from './TrendingRow';
 import { EmptyState } from './ui';
 import { UserSearch } from './UserSearch';
 
@@ -22,6 +23,8 @@ export const MyList = ({
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <main className="scroll-area flex flex-1 flex-col gap-3 px-4 pt-4 pb-6">
+        {/* Same for everyone, so hidden while viewing someone's posts. */}
+        {!user && <TrendingRow />}
         <UserSearch
           user={user}
           onSearch={setUser}

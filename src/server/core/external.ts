@@ -10,6 +10,8 @@ import { normalizeName } from '../../shared/food';
 import type {
   ImportPostResponse,
   MapArea,
+  TrendingPost,
+  TrendingResponse,
   MyPostsResponse,
   PlaceSearchResponse,
   PostDetailResponse,
@@ -27,6 +29,15 @@ import type {
 const TEST_IMPORT_SUBREDDITS: string[] = [
   // 'punefoodporn', // ⚠️ TESTING ONLY
 ];
+
+/**
+ * ⚠️ TESTING: the trending row reads this subreddit instead of the one the
+ * app is installed in. Set to '' before publishing.
+ */
+const TRENDING_SUBREDDIT_OVERRIDE = 'punefoodporn';
+
+const trendingSubreddit = () =>
+  TRENDING_SUBREDDIT_OVERRIDE || (context.subredditName ?? '');
 
 /** Whether posts from `name` may be imported. */
 const canImportFrom = (name: string) => {
@@ -61,6 +72,24 @@ const isGone = (post: Post) =>
 // Reddit preview URLs come HTML-escaped.
 const cleanImageUrl = (url: string) => url.replace(/&amp;/g, '&');
 
+/** A link straight to an image file (e.g. i.redd.it or Imgur). */
+const isImageLink = (url: string) =>
+  /^https:\/\/(i\.redd\.it|i\.imgur\.com)\//i.test(url) ||
+  /\.(jpe?g|png|webp|gif)(\?|$)/i.test(url);
+
+/**
+ * A post's photos. Reddit's preview usually has them, but it can be missing
+ * (e.g. on brand-new posts), so fall back to the thumbnail, then to the
+ * post's own link when it points straight at an image.
+ */
+const postImages = (post: Post): string[] => {
+  const images = post.gallery.map((media) => cleanImageUrl(media.url));
+  if (images.length > 0) return images;
+  if (isImageLink(post.url)) return [cleanImageUrl(post.url)];
+  if (post.thumbnail) return [cleanImageUrl(post.thumbnail.url)];
+  return [];
+};
+
 /**
  * Loads one of `username`'s posts from this subreddit so it can be turned
  * into a review.
@@ -79,10 +108,7 @@ export const importPost = async (
     throw new Error('You can only import your own posts.');
   }
   if (isGone(post)) throw new Error('That post has been removed.');
-  const images = post.gallery.map((media) => cleanImageUrl(media.url));
-  if (images.length === 0 && post.thumbnail) {
-    images.push(cleanImageUrl(post.thumbnail.url));
-  }
+  const images = postImages(post);
   return {
     postId: post.id,
     title: post.title,
@@ -97,14 +123,14 @@ export const getPostDetail = async (
   postId: string
 ): Promise<PostDetailResponse> => {
   const post = await reddit.getPostById(`t3_${postId.replace(/^t3_/, '')}`);
-  if (!canImportFrom(post.subredditName)) {
+  // Trending posts can come from the trending subreddit (see the override).
+  const fromTrending =
+    post.subredditName.toLowerCase() === trendingSubreddit().toLowerCase();
+  if (!canImportFrom(post.subredditName) && !fromTrending) {
     throw new Error('That post is from another subreddit.');
   }
   if (isGone(post)) throw new Error('That post has been removed.');
-  const images = post.gallery.map((m) => cleanImageUrl(m.url));
-  if (images.length === 0 && post.thumbnail) {
-    images.push(cleanImageUrl(post.thumbnail.url));
-  }
+  const images = postImages(post);
   return {
     postId: post.id,
     title: post.title,
@@ -147,11 +173,10 @@ export const listMyPosts = async (
     lastScanned = post.id;
     scanned++;
     if (canImportFrom(post.subredditName) && !isGone(post)) {
-      const image = post.gallery[0]?.url ?? post.thumbnail?.url;
       posts.push({
         postId: post.id,
         title: post.title,
-        image: image ? cleanImageUrl(image) : null,
+        image: postImages(post)[0] ?? null,
         postedAt: post.createdAt.getTime(),
         rating: ratings.get(post.id) ?? null,
       });
@@ -167,6 +192,95 @@ export const listMyPosts = async (
     posts,
     nextCursor: mayHaveMore ? lastScanned : null,
   };
+};
+
+// ---------------------------------------------------------------------------
+// Trending: the last day's posts with the most upvotes and comments
+// ---------------------------------------------------------------------------
+
+/**
+ * Windows tried in turn, in days: the first with enough photo posts wins,
+ * so quiet subreddits still get a full row.
+ */
+const TRENDING_WINDOWS_DAYS = [1, 3, 7];
+const TRENDING_MIN_POSTS = 5;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Most of the newest posts checked (a busy week can have more). */
+const TRENDING_SCAN_LIMIT = 300;
+const TRENDING_COUNT = 10;
+/** Shared by everyone for this long, so Reddit isn't asked on every open. */
+const TRENDING_CACHE_MS = 10 * 60 * 1000;
+/** A comment takes more effort than an upvote, so it counts for more. */
+const COMMENT_WEIGHT = 2;
+
+const parseTrending = (value: string | undefined): TrendingResponse | null => {
+  if (!value) return null;
+  try {
+    const cached: TrendingResponse = JSON.parse(value);
+    return cached;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Up to 10 recent photo posts, most upvoted and discussed first. Uses the
+ * last 24 hours, widening to 3 then 7 days when there are too few.
+ */
+export const getTrendingPosts = async (): Promise<TrendingResponse> => {
+  const subredditName = trendingSubreddit();
+  const cacheKey = `trending:v2:${subredditName.toLowerCase()}`;
+  const cached = parseTrending(await redis.get(cacheKey));
+  if (cached) return cached;
+
+  const maxDays = TRENDING_WINDOWS_DAYS[TRENDING_WINDOWS_DAYS.length - 1] ?? 7;
+  const oldest = Date.now() - maxDays * DAY_MS;
+  // Newest first, back to the widest window.
+  const found: (TrendingPost & { rank: number })[] = [];
+  const listing = reddit.getNewPosts({
+    subredditName,
+    limit: TRENDING_SCAN_LIMIT,
+    pageSize: 100,
+  });
+  for await (const post of listing) {
+    const postedAt = post.createdAt.getTime();
+    if (postedAt < oldest) break;
+    // Pinned posts (like the SwaadNama hub) and removed ones don't count.
+    if (post.stickied || isGone(post)) continue;
+    // The cards are photos, so posts without one are left out.
+    const image = postImages(post)[0];
+    if (!image) continue;
+    found.push({
+      postId: post.id,
+      title: post.title,
+      image,
+      author: post.authorName,
+      score: post.score,
+      comments: post.numberOfComments,
+      postedAt,
+      rank: post.score + post.numberOfComments * COMMENT_WEIGHT,
+    });
+  }
+
+  // The narrowest window with enough posts, else the widest.
+  const days =
+    TRENDING_WINDOWS_DAYS.find(
+      (d) =>
+        found.filter((p) => p.postedAt >= Date.now() - d * DAY_MS).length >=
+        TRENDING_MIN_POSTS
+    ) ?? maxDays;
+  const since = Date.now() - days * DAY_MS;
+  const posts = found
+    .filter((p) => p.postedAt >= since)
+    .sort((a, b) => b.rank - a.rank)
+    .slice(0, TRENDING_COUNT)
+    .map(({ rank: _rank, ...post }) => post);
+
+  const result: TrendingResponse = { subredditName, days, posts };
+  await redis.set(cacheKey, JSON.stringify(result), {
+    expiration: new Date(Date.now() + TRENDING_CACHE_MS),
+  });
+  return result;
 };
 
 // ---------------------------------------------------------------------------
