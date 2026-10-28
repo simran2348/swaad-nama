@@ -235,7 +235,7 @@ export const AdminScreen = ({ subredditName }: { subredditName: string }) => {
         <div className="flex flex-col gap-8 px-4">
           {/* Each install has its own data, so everything here is for this
               subreddit only. */}
-          <div className="-mt-3 flex flex-col items-center gap-1 text-center">
+          <div className="flex flex-col items-center gap-1 text-center">
             {subredditName && (
               <p className="rounded-full bg-cta/15 px-3 py-1 text-sm font-extrabold text-cta">
                 r/{subredditName}
