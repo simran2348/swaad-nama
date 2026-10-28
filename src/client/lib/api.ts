@@ -125,6 +125,9 @@ export const deleteReview = (id: string) =>
 export const fetchAdminStats = (days: 7 | 30) =>
   request<AdminStatsResponse>(`/api/admin/stats?days=${days}`);
 
+export const adminResetStats = () =>
+  request<{ status: 'ok' }>('/api/admin/reset-stats', { method: 'POST' });
+
 export const adminDeletePosts = (ids: string) =>
   request<AdminDeletePostsResponse>('/api/admin/delete-posts', {
     method: 'POST',

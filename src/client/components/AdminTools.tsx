@@ -1,7 +1,11 @@
 import { showToast } from '@devvit/web/client';
 import { useState, type ComponentType, type ReactNode } from 'react';
 import type { AdminDeletePostsResponse } from '../../shared/api';
-import { adminDeletePosts, adminResetRatings } from '../lib/api';
+import {
+  adminDeletePosts,
+  adminResetRatings,
+  adminResetStats,
+} from '../lib/api';
 import { Spinner } from './ui';
 import { DripHeader } from './DripHeader';
 import { AdminStats } from './AdminStats';
@@ -72,12 +76,31 @@ const DangerButton = ({
 };
 
 /** Admin-only tools (the server rejects everyone else too). */
-export const AdminTools = () => {
+export const AdminTools = ({
+  onStatsReset,
+}: {
+  /** Called after the analytics are cleared, to reload the overview. */
+  onStatsReset: () => void;
+}) => {
   const [ids, setIds] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [results, setResults] = useState<AdminDeletePostsResponse['results']>();
   const [username, setUsername] = useState('');
   const [resetting, setResetting] = useState(false);
+  const [clearingStats, setClearingStats] = useState(false);
+
+  const resetStats = async () => {
+    setClearingStats(true);
+    try {
+      await adminResetStats();
+      showToast('Analytics reset');
+      onStatsReset();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Reset failed');
+    } finally {
+      setClearingStats(false);
+    }
+  };
 
   const deletePosts = async () => {
     setDeleting(true);
@@ -178,26 +201,49 @@ export const AdminTools = () => {
           Reset ratings
         </DangerButton>
       </div>
+
+      <div className="flex flex-col gap-2">
+        <h3 className="px-1 text-base font-extrabold text-ink">
+          Reset analytics
+        </h3>
+        <p className="px-1 text-xs leading-relaxed text-muted">
+          Clears the overview's counts: daily activity, feature usage, the add
+          flow, users seen and top raters (which refill from real ratings as
+          people open the app). Ratings aren't touched, and Reddit's Journeys
+          data can't be reset from here.
+        </p>
+        <DangerButton
+          disabled={false}
+          busy={clearingStats}
+          onConfirm={() => void resetStats()}
+        >
+          Reset analytics
+        </DangerButton>
+      </div>
     </div>
   );
 };
 
 /** Admin tab: only shown to the admin account (checked on the server too). */
-export const AdminScreen = () => (
-  <div className="flex h-full min-h-0 flex-1 flex-col">
-    <main className="scroll-area flex flex-1 flex-col pb-8">
-      <DripHeader title="ADMIN" />
-      <div className="flex flex-col gap-8 px-4">
-        <p className="text-center text-sm text-muted">Only visible to you.</p>
-        <AdminStats />
-        <div className="flex flex-col gap-3 border-t border-line pt-6">
-          <h2 className="px-1 text-lg font-extrabold text-ink">Tools</h2>
-          <p className="-mt-2 px-1 text-xs text-muted">
-            These actions can't be undone.
-          </p>
-          <AdminTools />
+export const AdminScreen = () => {
+  // Bumped after the analytics are reset, to reload the overview.
+  const [statsVersion, setStatsVersion] = useState(0);
+  return (
+    <div className="flex h-full min-h-0 flex-1 flex-col">
+      <main className="scroll-area flex flex-1 flex-col pb-8">
+        <DripHeader title="ADMIN" />
+        <div className="flex flex-col gap-8 px-4">
+          <p className="text-center text-sm text-muted">Only visible to you.</p>
+          <AdminStats refreshKey={statsVersion} />
+          <div className="flex flex-col gap-3 border-t border-line pt-6">
+            <h2 className="px-1 text-lg font-extrabold text-ink">Tools</h2>
+            <p className="-mt-2 px-1 text-xs text-muted">
+              These actions can't be undone.
+            </p>
+            <AdminTools onStatsReset={() => setStatsVersion((v) => v + 1)} />
+          </div>
         </div>
-      </div>
-    </main>
-  </div>
-);
+      </main>
+    </div>
+  );
+};

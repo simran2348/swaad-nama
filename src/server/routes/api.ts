@@ -35,6 +35,7 @@ import {
   getAdminStats,
   recordEvent,
   recordOpen,
+  resetStats,
 } from '../core/stats';
 import { TEAM_USERNAMES } from '../../shared/team';
 import { isAppMode, isPaletteId } from '../../shared/theme';
@@ -676,6 +677,22 @@ api.get('/admin/stats', async (c) => {
     return c.json<AdminStatsResponse>(await getAdminStats(days));
   } catch (error) {
     return failure(c, error, 'admin stats');
+  }
+});
+
+/** Admin only: clears our analytics counters (not ratings, not Journeys). */
+api.post('/admin/reset-stats', async (c) => {
+  if (!isAdmin(await reddit.getCurrentUsername())) {
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Not allowed' },
+      403
+    );
+  }
+  try {
+    await resetStats();
+    return c.json({ status: 'ok' });
+  } catch (error) {
+    return failure(c, error, 'admin reset stats');
   }
 });
 

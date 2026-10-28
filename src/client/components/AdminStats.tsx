@@ -155,7 +155,7 @@ const DayChart = ({
 };
 
 /** Admin analytics: totals, daily activity, top raters, usage, add flow. */
-export const AdminStats = () => {
+export const AdminStats = ({ refreshKey }: { refreshKey: number }) => {
   const [range, setRange] = useState<Range>(7);
   const [metric, setMetric] = useState<Metric>('activeUsers');
   const [result, setResult] = useState<{ for: Range } & Result>();
@@ -171,7 +171,7 @@ export const AdminStats = () => {
     return () => {
       cancelled = true;
     };
-  }, [range]);
+  }, [range, refreshKey]);
 
   const current = result?.for === range ? result : undefined;
 
