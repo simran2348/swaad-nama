@@ -155,12 +155,26 @@
 .leaflet-tooltip.map-tooltip {
   border: 1px solid var(--line);
   border-radius: 9999px;
-  background: var(--field);
+  /* Solid: the theme's field colour is see-through in dark mode. */
+  background: #fff;
   color: var(--ink);
   font-family: var(--font-sans);
   font-weight: 700;
   padding: 2px 10px;
   box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+}
+
+.dark .leaflet-tooltip.map-tooltip {
+  background: #171717;
+}
+
+/* Leaflet's little arrow under the label, matched to it. */
+.leaflet-tooltip-top.map-tooltip::before {
+  border-top-color: #fff;
+}
+
+.dark .leaflet-tooltip-top.map-tooltip::before {
+  border-top-color: #171717;
 }
 
 .leaflet-container {

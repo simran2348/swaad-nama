@@ -7,12 +7,19 @@ import {
 } from '@devvit/web/server';
 import { cleanPostBody } from '../../shared/text';
 import { normalizeName } from '../../shared/food';
+import {
+  coordsFromMapsUrl,
+  isFullMapsLink,
+  isShortMapsLink,
+  placeNameFromMapsUrl,
+} from '../../shared/mapsLink';
 import type {
   ImportPostResponse,
   MapArea,
   TrendingPost,
   TrendingResponse,
   MyPostsResponse,
+  PlaceLinkResponse,
   PlaceSearchResponse,
   PostDetailResponse,
 } from '../../shared/api';
@@ -290,6 +297,12 @@ export const getTrendingPosts = async (): Promise<TrendingResponse> => {
 
 const PHOTON_URL = 'https://photon.komoot.io/api/';
 
+// Place search is limited to India: Photon searches inside this box
+// (west, south, east, north), then results from neighbouring countries
+// that fall inside it are dropped by country code.
+const INDIA_BBOX = '68.1,6.5,97.5,35.7';
+const INDIA_COUNTRY_CODE = 'IN';
+
 // Food spots are listed before other matches (streets, towns, …).
 const FOOD_TYPES = new Set([
   'cafe',
@@ -312,6 +325,20 @@ const text = (obj: unknown, key: string): string => {
   return typeof value === 'string' ? value : '';
 };
 
+/** "12 High St, Pune, India" from a Photon result's properties. */
+const addressOf = (props: unknown): string => {
+  const street = [text(props, 'housenumber'), text(props, 'street')]
+    .filter(Boolean)
+    .join(' ');
+  return [
+    street,
+    text(props, 'city') || text(props, 'county'),
+    text(props, 'country'),
+  ]
+    .filter(Boolean)
+    .join(', ');
+};
+
 export const searchPlaces = async (
   query: string,
   /** Prefer results near here (the subreddit's map area). */
@@ -319,8 +346,10 @@ export const searchPlaces = async (
 ): Promise<PlaceSearchResponse> => {
   const params = new URLSearchParams({
     q: query,
-    limit: '10',
+    // Extra, since results outside India are dropped below.
+    limit: '15',
     lang: 'en',
+    bbox: INDIA_BBOX,
     ...(near ? { lat: String(near.lat), lon: String(near.lon) } : {}),
   });
   const res = await fetch(`${PHOTON_URL}?${params}`);
@@ -337,23 +366,84 @@ export const searchPlaces = async (
       if (!name || typeof lat !== 'number' || typeof lon !== 'number') {
         return [];
       }
-      const street = [text(props, 'housenumber'), text(props, 'street')]
-        .filter(Boolean)
-        .join(' ');
-      const address = [
-        street,
-        text(props, 'city') || text(props, 'county'),
-        text(props, 'country'),
-      ]
-        .filter(Boolean)
-        .join(', ');
+      if (text(props, 'countrycode').toUpperCase() !== INDIA_COUNTRY_CODE) {
+        return [];
+      }
+      const address = addressOf(props);
       const isFood = FOOD_TYPES.has(text(props, 'osm_value'));
       return [{ place: { name, address, lat, lon }, isFood }];
     }
   );
 
   found.sort((a, b) => Number(b.isFood) - Number(a.isFood));
-  return { places: found.map(({ place }) => place) };
+  return { places: found.slice(0, 10).map(({ place }) => place) };
+};
+
+/** Thrown for links we can't use; its message is shown to the user. */
+export class PlaceLinkError extends Error {}
+
+/**
+ * Follows a Google Maps share link (maps.app.goo.gl/…) one hop to the full
+ * maps URL it points to. Only the redirect is read, not Google's page.
+ */
+const expandShortLink = async (link: string): Promise<string> => {
+  const res = await fetch(link, { redirect: 'manual' });
+  const location = res.headers.get('location');
+  if (location) return location;
+  // Some runtimes follow redirects anyway; use where we ended up.
+  if (res.url && res.url !== link) return res.url;
+  throw new PlaceLinkError("Couldn't open that link. Try copying it again.");
+};
+
+/**
+ * A place from a pasted Google Maps link: its coordinates, the name in the
+ * link (if any) and an address looked up from the coordinates. India only.
+ */
+export const placeFromMapsLink = async (
+  link: string
+): Promise<PlaceLinkResponse> => {
+  const trimmed = link.trim();
+  let full: string;
+  if (isShortMapsLink(trimmed)) {
+    full = await expandShortLink(trimmed);
+  } else if (isFullMapsLink(trimmed)) {
+    full = trimmed;
+  } else {
+    throw new PlaceLinkError('Paste a Google Maps link to the place.');
+  }
+
+  const coords = coordsFromMapsUrl(full);
+  if (!coords) {
+    throw new PlaceLinkError(
+      "That link doesn't include a location. Open the place in Google Maps and share it again."
+    );
+  }
+
+  // The address, and a check that the place is in India.
+  const params = new URLSearchParams({
+    lat: String(coords.lat),
+    lon: String(coords.lon),
+    lang: 'en',
+  });
+  const res = await fetch(`https://photon.komoot.io/reverse?${params}`);
+  if (!res.ok) throw new Error(`Address lookup failed (${res.status})`);
+  const json: unknown = await res.json();
+  const features = field(json, 'features');
+  const props = Array.isArray(features)
+    ? field(features[0], 'properties')
+    : undefined;
+  if (text(props, 'countrycode').toUpperCase() !== INDIA_COUNTRY_CODE) {
+    throw new PlaceLinkError('Only places in India can be added for now.');
+  }
+
+  return {
+    place: {
+      name: placeNameFromMapsUrl(full) || text(props, 'name'),
+      address: addressOf(props),
+      lat: coords.lat,
+      lon: coords.lon,
+    },
+  };
 };
 
 // ---------------------------------------------------------------------------

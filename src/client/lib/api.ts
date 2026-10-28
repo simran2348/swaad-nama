@@ -16,6 +16,7 @@ import type {
   FoodRatersResponse,
   TrendingResponse,
   MyPostsResponse,
+  PlaceLinkResponse,
   PlaceSearchResponse,
   ProfileResponse,
   SaveModeRequest,
@@ -82,6 +83,12 @@ export const fetchTeam = () => request<TeamResponse>('/api/team');
 export const fetchTrending = () => request<TrendingResponse>('/api/trending');
 
 export const fetchMapArea = () => request<MapAreaResponse>('/api/map-area');
+
+/** A place from a pasted Google Maps link. */
+export const placeFromLink = (url: string) =>
+  request<PlaceLinkResponse>(
+    `/api/places/from-link?${new URLSearchParams({ url })}`
+  );
 
 export const searchPlaces = (query: string) =>
   request<PlaceSearchResponse>(`/api/places?q=${encodeURIComponent(query)}`);

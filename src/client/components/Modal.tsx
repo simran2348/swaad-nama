@@ -1,4 +1,5 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { cleanPostBody } from '../../shared/text';
 import { useTheme } from '../lib/theme';
 import { Carousel } from './Carousel';
@@ -131,7 +132,9 @@ export const Modal = ({
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  return (
+  // Rendered at the page root so no screen's layer (or the bottom nav) can
+  // cover it, wherever it's opened from.
+  return createPortal(
     // Clipped to the app column so the slide doesn't show beside it.
     <div className="fixed inset-0 z-40 mx-auto max-w-[768px] overflow-hidden">
       <div
@@ -175,7 +178,8 @@ export const Modal = ({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

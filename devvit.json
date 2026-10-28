@@ -19,7 +19,12 @@
   "permissions": {
     "http": {
       "enable": true,
-      "domains": ["photon.komoot.io", "basemaps.cartocdn.com"]
+      "domains": [
+        "photon.komoot.io",
+        "basemaps.cartocdn.com",
+        "maps.app.goo.gl",
+        "goo.gl"
+      ]
     },
     "reddit": true
   },

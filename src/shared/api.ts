@@ -242,6 +242,14 @@ export type PlaceSearchResponse = {
   places: (PlaceLocation & { name: string })[];
 };
 
+/** A place read from a pasted Google Maps link. */
+export type PlaceLinkResponse = {
+  place: PlaceLocation & {
+    /** From the link, or the nearest named spot; may be empty. */
+    name: string;
+  };
+};
+
 export type CreateReviewResponse = {
   review: FoodReview;
   postUrl: string | null;

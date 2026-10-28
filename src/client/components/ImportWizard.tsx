@@ -1,5 +1,6 @@
 import { showToast } from '@devvit/web/client';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { ImportPostResponse } from '../../shared/api';
 import { createReview, importPost } from '../lib/api';
 import { draftToRequest, emptyDraft, isDraftComplete } from '../lib/draft';
@@ -143,7 +144,8 @@ export const ImportWizard = ({
     onDone(added);
   };
 
-  return (
+  // Rendered at the page root so the bottom nav can't cover the Submit button.
+  return createPortal(
     <div className="fixed inset-0 z-30 mx-auto flex max-w-[768px] flex-col">
       <ThemeSurface
         palette={useTheme()}
@@ -230,6 +232,7 @@ export const ImportWizard = ({
           )}
         </>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };

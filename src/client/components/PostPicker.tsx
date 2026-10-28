@@ -203,6 +203,7 @@ export const PostPicker = ({
 
       {/* Covers the bottom nav (same height) while posts are picked. */}
       {selected.length > 0 &&
+        !importing &&
         navSlot &&
         createPortal(
           <div className="pointer-events-auto h-full rounded-t-3xl border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] backdrop-blur">

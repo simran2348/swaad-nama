@@ -12,6 +12,7 @@ import type {
   ErrorResponse,
   ImportPostResponse,
   MyPostsResponse,
+  PlaceLinkResponse,
   PlaceLocation,
   PlaceSearchResponse,
   InitResponse,
@@ -38,6 +39,8 @@ import {
   importPost,
   listMyPosts,
   searchPlaces,
+  placeFromMapsLink,
+  PlaceLinkError,
 } from '../core/external';
 import { postUrl } from '../core/post';
 import { getAvatarUrl } from '../core/avatars';
@@ -274,6 +277,32 @@ api.get('/my-posts', async (c) => {
     return c.json<ErrorResponse>(
       { status: 'error', message: errorMessage(error) },
       500
+    );
+  }
+});
+
+// A place from a pasted Google Maps link (coordinates + address).
+api.get('/places/from-link', async (c) => {
+  const link = c.req.query('url')?.trim() ?? '';
+  if (!link || link.length > 2000) {
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Paste a Google Maps link to the place.' },
+      400
+    );
+  }
+  try {
+    return c.json<PlaceLinkResponse>(await placeFromMapsLink(link));
+  } catch (error) {
+    if (error instanceof PlaceLinkError) {
+      return c.json<ErrorResponse>(
+        { status: 'error', message: error.message },
+        400
+      );
+    }
+    console.error('API place link error:', error);
+    return c.json<ErrorResponse>(
+      { status: 'error', message: "Couldn't read that link. Try again." },
+      502
     );
   }
 });

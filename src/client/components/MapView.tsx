@@ -209,7 +209,7 @@ export const MapView = ({ data }: { data: InitResponse | null }) => {
               : 'pointer-events-none -translate-y-2 scale-[0.97] opacity-0'
           }`}
         >
-          <div className="mx-auto max-w-sm origin-top rounded-xl border border-line bg-field px-4 py-3 text-sm text-ink shadow-xl">
+          <div className="mx-auto max-w-sm origin-top rounded-xl border border-line bg-white px-4 py-3 dark:bg-neutral-900 text-sm text-ink shadow-xl">
             <p>
               {PLACE_SEARCH_ENABLED
                 ? placed.length
