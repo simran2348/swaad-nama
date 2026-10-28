@@ -202,8 +202,9 @@ export const listMyPosts = async (
  * Windows tried in turn, in days: the first with enough photo posts wins,
  * so quiet subreddits still get a full row.
  */
-const TRENDING_WINDOWS_DAYS = [1, 3, 7];
-const TRENDING_MIN_POSTS = 5;
+const TRENDING_WINDOWS_DAYS = [3, 5, 7];
+/** Widen until a full row (TRENDING_COUNT) is found. */
+const TRENDING_MIN_POSTS = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Most of the newest posts checked (a busy week can have more). */
 const TRENDING_SCAN_LIMIT = 300;
@@ -225,11 +226,11 @@ const parseTrending = (value: string | undefined): TrendingResponse | null => {
 
 /**
  * Up to 10 recent photo posts, most upvoted and discussed first. Uses the
- * last 24 hours, widening to 3 then 7 days when there are too few.
+ * last 3 days, widening to 5 then 7 days when there are fewer than 10.
  */
 export const getTrendingPosts = async (): Promise<TrendingResponse> => {
   const subredditName = trendingSubreddit();
-  const cacheKey = `trending:v2:${subredditName.toLowerCase()}`;
+  const cacheKey = `trending:v3:${subredditName.toLowerCase()}`;
   const cached = parseTrending(await redis.get(cacheKey));
   if (cached) return cached;
 

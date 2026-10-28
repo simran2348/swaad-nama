@@ -175,7 +175,7 @@ export type TrendingPost = {
 export type TrendingResponse = {
   /** Where the posts come from. */
   subredditName: string;
-  /** How far back the posts go: 1, 3 or 7 days (widened on quiet days). */
+  /** How far back the posts go: 3, 5 or 7 days (widened on quiet days). */
   days: number;
   posts: TrendingPost[];
 };
