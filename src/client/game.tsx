@@ -124,7 +124,7 @@ export const App = () => {
           ) : tab === 'map' ? (
             <MapView data={data} />
           ) : tab === 'admin' && isAdmin(data?.username) ? (
-            <AdminScreen />
+            <AdminScreen subredditName={data?.subredditName ?? ''} />
           ) : (
             <Settings subredditName={data?.subredditName ?? ''} />
           )}

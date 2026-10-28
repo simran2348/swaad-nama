@@ -225,7 +225,7 @@ export const AdminTools = ({
 };
 
 /** Admin tab: only shown to the admin account (checked on the server too). */
-export const AdminScreen = () => {
+export const AdminScreen = ({ subredditName }: { subredditName: string }) => {
   // Bumped after the analytics are reset, to reload the overview.
   const [statsVersion, setStatsVersion] = useState(0);
   return (
@@ -233,7 +233,18 @@ export const AdminScreen = () => {
       <main className="scroll-area flex flex-1 flex-col pb-8">
         <DripHeader title="ADMIN" />
         <div className="flex flex-col gap-8 px-4">
-          <p className="text-center text-sm text-muted">Only visible to you.</p>
+          {/* Each install has its own data, so everything here is for this
+              subreddit only. */}
+          <div className="-mt-3 flex flex-col items-center gap-1 text-center">
+            {subredditName && (
+              <p className="rounded-full bg-cta/15 px-3 py-1 text-sm font-extrabold text-cta">
+                r/{subredditName}
+              </p>
+            )}
+            <p className="text-xs text-muted">
+              Stats for this subreddit only. Only visible to you.
+            </p>
+          </div>
           <AdminStats refreshKey={statsVersion} />
           <div className="flex flex-col gap-3 border-t border-line pt-6">
             <h2 className="px-1 text-lg font-extrabold text-ink">Tools</h2>
