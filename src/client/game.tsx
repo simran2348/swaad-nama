@@ -25,6 +25,7 @@ import { MyList } from './components/MyList';
 import { Ratings } from './components/Ratings';
 import { Settings } from './components/Settings';
 import { fetchInit } from './lib/api';
+import { DripHeader } from './components/DripHeader';
 import { trackAppReady } from './lib/track';
 import { NAV_HEIGHT, NavSlotContext } from './lib/navSlot';
 import { initAppTheme, syncMode } from './lib/theme';
@@ -101,6 +102,21 @@ export const App = () => {
   }, []);
 
   useEffect(load, [load]);
+
+  // "App status" set to Closed by a mod (the admin can still get in).
+  if (data?.canUse === false) {
+    return (
+      <div className="flex h-full min-h-0 flex-1 flex-col">
+        <DripHeader title="SwaadNama" />
+        <main className="flex flex-1 flex-col items-center gap-2 px-6 pt-6 text-center">
+          <h2 className="text-2xl font-extrabold text-ink">Coming Soon</h2>
+          <p className="max-w-xs text-sm text-muted">
+            SwaadNama isn't open in r/{data.subredditName} yet. Check back soon!
+          </p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">

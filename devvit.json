@@ -42,6 +42,22 @@
   },
   "settings": {
     "subreddit": {
+      "appStatus": {
+        "type": "select",
+        "label": "App status",
+        "helpText": "Open: everyone can use SwaadNama. Closed: members see \"Coming Soon\" on the post (the app admin can still use it, for testing).",
+        "options": [
+          {
+            "label": "Open",
+            "value": "open"
+          },
+          {
+            "label": "Closed",
+            "value": "closed"
+          }
+        ],
+        "defaultValue": "open"
+      },
       "mapArea": {
         "type": "string",
         "label": "Map area",

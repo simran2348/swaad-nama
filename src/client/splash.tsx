@@ -23,6 +23,8 @@ export const Splash = () => {
     profile ? (profile.avatarUrl ?? FALLBACK_AVATAR_URL) : null
   );
 
+  const comingSoon = profile?.canUse === false;
+
   useEffect(() => {
     fetchProfile()
       .then((res) => {
@@ -32,7 +34,13 @@ export const Splash = () => {
       .catch((err) => {
         console.error('Failed to load profile', err);
         // Carry on with the Snoo and a generic welcome.
-        setProfile({ username: null, avatarUrl: null, theme: null });
+        // If the status can't be checked, let them in: the app checks again.
+        setProfile({
+          username: null,
+          avatarUrl: null,
+          theme: null,
+          canUse: true,
+        });
       });
   }, []);
 
@@ -75,11 +83,13 @@ export const Splash = () => {
             and peek at other foodies' favourites.
           </p>
         </div>
+        {/* "App status" set to Closed: members see Coming Soon. */}
         <button
           onClick={(e) => requestExpandedMode(e.nativeEvent, 'game')}
-          className="w-full max-w-xs rounded-full bg-cta px-6 py-3 text-lg font-bold text-cta-ink shadow-lg cursor-pointer hover:brightness-95 transition"
+          disabled={comingSoon}
+          className="w-full max-w-xs rounded-full bg-cta px-6 py-3 text-lg font-bold text-cta-ink shadow-lg cursor-pointer hover:brightness-95 transition disabled:cursor-default disabled:opacity-70 disabled:shadow-none disabled:hover:brightness-100"
         >
-          Explore
+          {comingSoon ? 'Coming Soon' : 'Explore'}
         </button>
       </main>
       {picking && (

@@ -23,6 +23,7 @@ import { BackButton, EmptyState, LoadingState } from './ui';
 import { TopRatedRow } from './TopRatedRow';
 import { FoodRaters } from './FoodRaters';
 import { UserSearch } from './UserSearch';
+import { USER_SEARCH_ENABLED } from '../lib/features';
 
 type Result =
   { ok: true; data: CategoriesResponse } | { ok: false; error: string };
@@ -279,15 +280,17 @@ export const Ratings = ({
       <main className="scroll-area flex flex-1 flex-col gap-3 px-4 pt-4 pb-6">
         {/* Same for everyone, so hidden while viewing someone's ratings. */}
         {isOwn && <TopRatedRow refreshKey={version} onOpen={setCommunity} />}
-        <UserSearch
-          user={isOwn ? null : (owner ?? user)}
-          onSearch={(name) => {
-            setUser(name);
-            setCategory(null);
-          }}
-          onClear={() => setUser(null)}
-          placeholder="See a Redditor's ratings"
-        />
+        {USER_SEARCH_ENABLED && (
+          <UserSearch
+            user={isOwn ? null : (owner ?? user)}
+            onSearch={(name) => {
+              setUser(name);
+              setCategory(null);
+            }}
+            onClear={() => setUser(null)}
+            placeholder="See a Redditor's ratings"
+          />
+        )}
         {!current ||
         (current.ok && current.data.categories.length === 0 && !imageReady) ? (
           <LoadingState />

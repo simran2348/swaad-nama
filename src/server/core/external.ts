@@ -38,10 +38,10 @@ const TEST_IMPORT_SUBREDDITS: string[] = [
 ];
 
 /**
- * ⚠️ TESTING: the trending row reads this subreddit instead of the one the
- * app is installed in. Set to '' before publishing.
+ * For testing only: read trending posts from this subreddit instead of the
+ * one the app is installed in. Keep '' in published builds.
  */
-const TRENDING_SUBREDDIT_OVERRIDE = 'punefoodporn';
+const TRENDING_SUBREDDIT_OVERRIDE = '';
 
 const trendingSubreddit = () =>
   TRENDING_SUBREDDIT_OVERRIDE || (context.subredditName ?? '');

@@ -29,6 +29,8 @@ import type {
   UserReviewsResponse,
 } from '../../shared/api';
 import { isAdmin } from '../../shared/admin';
+import { canUseApp } from '../../shared/access';
+import { getAppStatus } from '../core/access';
 import { isTrackEvent } from '../../shared/stats';
 import {
   backfillRater,
@@ -107,6 +109,25 @@ const resolveUsername = async (input: string): Promise<string | null> => {
 
 export const api = new Hono();
 
+/** Whether the current user may use the app ("App status" setting). */
+const currentUserCanUse = async (username?: string | null) =>
+  canUseApp(
+    await getAppStatus(),
+    isAdmin(username ?? (await reddit.getCurrentUsername()))
+  );
+
+// While the app is Closed, only the admin can use it. The splash (/profile)
+// and /init still answer, so they can show "Coming Soon".
+api.use('*', async (c, next) => {
+  const path = c.req.path.replace(/^\/api/, '');
+  if (path === '/profile' || path === '/init') return next();
+  if (await currentUserCanUse()) return next();
+  return c.json<ErrorResponse>(
+    { status: 'error', message: 'SwaadNama is coming soon.' },
+    403
+  );
+});
+
 api.get('/profile', async (c) => {
   try {
     const username = (await reddit.getCurrentUsername()) ?? null;
@@ -120,6 +141,7 @@ api.get('/profile', async (c) => {
       username,
       avatarUrl: avatarUrl ?? null,
       theme,
+      canUse: await currentUserCanUse(username),
     });
   } catch (error) {
     console.error('API profile error:', error);
@@ -133,6 +155,16 @@ api.get('/profile', async (c) => {
 api.get('/init', async (c) => {
   try {
     const username = (await reddit.getCurrentUsername()) ?? null;
+    if (!(await currentUserCanUse(username))) {
+      return c.json<InitResponse>({
+        username,
+        subredditName: context.subredditName ?? '',
+        mode: null,
+        canUse: false,
+        myList: [],
+        foods: [],
+      });
+    }
     const [myList, foods, mode] = await Promise.all([
       username ? getUserReviews(username) : Promise.resolve([]),
       getTopFoods(),
@@ -153,6 +185,7 @@ api.get('/init', async (c) => {
       username,
       subredditName: context.subredditName ?? '',
       mode,
+      canUse: true,
       myList,
       foods,
     });

@@ -60,6 +60,8 @@ export type ProfileResponse = {
   avatarUrl: string | null;
   /** The user's saved palette, if they've picked one. */
   theme: PaletteId | null;
+  /** False while a mod has set "App status" to Closed (admin excepted). */
+  canUse: boolean;
 };
 
 export type InitResponse = {
@@ -67,6 +69,8 @@ export type InitResponse = {
   subredditName: string;
   /** The user's saved light/dark choice, if they've made one. */
   mode: AppMode | null;
+  /** False while a mod has set "App status" to Closed (admin excepted). */
+  canUse: boolean;
   myList: FoodReview[];
   foods: string[];
 };
