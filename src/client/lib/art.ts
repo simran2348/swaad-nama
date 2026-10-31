@@ -77,3 +77,30 @@ export const useImagesLoaded = (srcs: readonly string[]) => {
   }, [srcs]);
   return srcs.length === 0 || loaded === srcs;
 };
+
+/** Give up waiting for the font after this; text then shows in a fallback. */
+const FONT_TIMEOUT_MS = 4000;
+
+/**
+ * True once the app font has downloaded (or failed, or timed out). Browsers
+ * only fetch a font when text first uses it, so this starts the download
+ * early, letting the splash wait for it instead of swapping fonts on screen.
+ */
+export const useFontLoaded = () => {
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const done = () => !cancelled && setLoaded(true);
+    const timer = setTimeout(done, FONT_TIMEOUT_MS);
+    // Sample text picks the Latin file; the font is variable, so one file
+    // covers every weight.
+    document.fonts
+      .load('900 1em "Nunito Variable"', 'SwaadNama')
+      .then(done, done);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, []);
+  return loaded;
+};

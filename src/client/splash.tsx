@@ -9,15 +9,65 @@ import { FoodLoader } from './components/FoodLoader';
 import { CloseIcon, CogIcon } from './components/icons';
 import { PalettePicker } from './components/PalettePicker';
 import { Avatar } from './components/ui';
+import { BrandLogo, BrandTagline } from './components/Brand';
 import { fetchProfile } from './lib/api';
-import { ART_URL, FALLBACK_AVATAR_URL, useImageLoaded } from './lib/art';
+import {
+  ART_URL,
+  FALLBACK_AVATAR_URL,
+  useFontLoaded,
+  useImageLoaded,
+} from './lib/art';
 import { initTheme, syncTheme } from './lib/theme';
+
+/**
+ * A long teardrop from a sharp tip at (x1, y1) to a round end at (x2, y2),
+ * `width` wide at the round end.
+ */
+const Teardrop = ({
+  x1,
+  y1,
+  x2,
+  y2,
+  width,
+}: {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  width: number;
+}) => {
+  const length = Math.hypot(x2 - x1, y2 - y1);
+  const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+  const r = width / 2;
+  return (
+    <path
+      transform={`translate(${x1} ${y1}) rotate(${angle})`}
+      d={`M0 0 Q${(length - r) * 0.5} ${-r * 0.35} ${length - r} ${-r} A${r} ${r} 0 0 1 ${length - r} ${r} Q${(length - r) * 0.5} ${r * 0.35} 0 0Z`}
+    />
+  );
+};
+
+/** Little "excited" strokes on either side of the avatar's head. */
+const AvatarRays = () => (
+  <svg
+    aria-hidden
+    viewBox="0 0 200 60"
+    fill="currentColor"
+    className="pointer-events-none absolute inset-x-0 top-[22%] w-full text-cta"
+  >
+    <Teardrop x1={42} y1={26} x2={27} y2={10} width={8} />
+    <Teardrop x1={38} y1={40} x2={18} y2={37} width={8} />
+    <Teardrop x1={158} y1={26} x2={173} y2={10} width={8} />
+    <Teardrop x1={162} y1={40} x2={182} y2={37} width={8} />
+  </svg>
+);
 
 export const Splash = () => {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [intro, setIntro] = useState(true);
   const [picking, setPicking] = useState(false);
   const artLoaded = useImageLoaded(ART_URL);
+  const fontLoaded = useFontLoaded();
   // Which avatar to show is only known once the profile has loaded.
   const avatarLoaded = useImageLoaded(
     profile ? (profile.avatarUrl ?? FALLBACK_AVATAR_URL) : null
@@ -49,7 +99,7 @@ export const Splash = () => {
   if (intro) {
     return (
       <FoodLoader
-        ready={artLoaded && avatarLoaded}
+        ready={artLoaded && fontLoaded && avatarLoaded}
         onDone={() => setIntro(false)}
       />
     );
@@ -66,19 +116,33 @@ export const Splash = () => {
       >
         <CogIcon className="h-5 w-5" />
       </button>
-      <main className="flex h-full flex-col items-center justify-center gap-5 overflow-y-auto px-6 py-8 text-center">
-        <Avatar
-          url={profile?.avatarUrl ?? null}
-          username={profile?.username ?? null}
-          className="h-36"
-        />
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-extrabold text-ink">
+      <main className="flex h-full flex-col items-center justify-center gap-3 overflow-y-auto px-6 py-5 text-center">
+        <div className="flex flex-col items-center">
+          <h1>
+            <BrandLogo className="h-auto w-56" />
+          </h1>
+          <BrandTagline className="mt-1" />
+        </div>
+        <div className="relative px-7">
+          {/* Soft glow that stands out from the theme's background. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,var(--glow)_0%,var(--glow)_25%,transparent_70%)] opacity-70 blur-md"
+          />
+          <AvatarRays />
+          <Avatar
+            url={profile?.avatarUrl ?? null}
+            username={profile?.username ?? null}
+            className="relative h-24"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <h2 className="text-xl font-extrabold text-ink">
             {profile?.username
               ? `Hey u/${profile.username}!`
-              : 'Welcome to SwaadNama'}
-          </h1>
-          <p className="max-w-sm text-base font-medium text-ink/85">
+              : 'Welcome, foodie!'}
+          </h2>
+          <p className="max-w-sm text-[15px] leading-snug font-semibold text-ink/85">
             Rate the spots you eat at, build your own tier list for every dish,
             and peek at other foodies' favourites.
           </p>
@@ -87,7 +151,7 @@ export const Splash = () => {
         <button
           onClick={(e) => requestExpandedMode(e.nativeEvent, 'game')}
           disabled={comingSoon}
-          className="w-full max-w-xs rounded-full bg-cta px-6 py-3 text-lg font-bold text-cta-ink shadow-lg cursor-pointer hover:brightness-95 transition disabled:cursor-default disabled:opacity-70 disabled:shadow-none disabled:hover:brightness-100"
+          className="w-full max-w-[15rem] rounded-full bg-cta px-6 py-2.5 text-base font-bold text-cta-ink shadow-lg cursor-pointer hover:brightness-95 transition disabled:cursor-default disabled:opacity-70 disabled:shadow-none disabled:hover:brightness-100"
         >
           {comingSoon ? 'Coming Soon' : 'Explore'}
         </button>
@@ -98,11 +162,11 @@ export const Splash = () => {
           aria-modal="true"
           aria-label="Theme"
           onClick={() => setPicking(false)}
-          className="modal-backdrop fixed inset-0 z-20 flex items-end justify-center bg-black/55 sm:items-center sm:p-6"
+          className="modal-backdrop fixed inset-0 z-20 flex items-center justify-center bg-black/55 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="modal-panel flex max-h-full w-full max-w-md flex-col rounded-t-3xl border border-line bg-popover shadow-2xl sm:rounded-3xl"
+            className="modal-panel flex max-h-full min-h-0 w-full max-w-md flex-col overflow-hidden rounded-3xl border border-line bg-popover shadow-2xl"
           >
             <div className="flex items-center justify-between px-4 pt-4 pb-2">
               <h2 className="text-lg font-extrabold text-ink">Theme</h2>
@@ -114,7 +178,7 @@ export const Splash = () => {
                 <CloseIcon className="h-4 w-4" />
               </button>
             </div>
-            <div className="scroll-area px-4 pb-5">
+            <div className="scroll-area min-h-0 flex-1 px-4 pt-1 pb-5">
               <PalettePicker />
             </div>
           </div>

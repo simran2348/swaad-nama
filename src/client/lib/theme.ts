@@ -327,6 +327,9 @@ const applyPalette = (palette: Surface) => {
     ['--line', c.line],
     ['--field', c.field],
     ['--accent', c.accent],
+    // Splash glow behind the avatar: the art colour on light themes (it
+    // stands out from the background), a soft light on dark ones.
+    ['--glow', palette.dark ? 'rgb(255 255 255 / 0.3)' : palette.artColor],
   ];
   for (const [name, value] of vars) root.style.setProperty(name, value);
   listeners.forEach((listener) => listener());
