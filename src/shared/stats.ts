@@ -7,7 +7,7 @@ export const FEATURE_EVENTS = {
   rater_open: "Opened someone's tier list",
   user_search: 'Searched a Redditor',
   map_pin_open: 'Opened a map pin',
-  place_link_used: 'Added a Google Maps link',
+  place_map_pick: 'Picked a place on the map',
 } as const;
 
 /** Steps of adding posts to the tier list, shown as the "Add flow" funnel. */

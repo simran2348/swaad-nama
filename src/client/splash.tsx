@@ -102,7 +102,7 @@ export const Splash = () => {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="modal-panel flex max-h-full w-full max-w-md flex-col rounded-t-3xl border border-line bg-surface shadow-2xl backdrop-blur-xl sm:rounded-3xl"
+            className="modal-panel flex max-h-full w-full max-w-md flex-col rounded-t-3xl border border-line bg-popover shadow-2xl sm:rounded-3xl"
           >
             <div className="flex items-center justify-between px-4 pt-4 pb-2">
               <h2 className="text-lg font-extrabold text-ink">Theme</h2>

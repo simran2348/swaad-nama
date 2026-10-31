@@ -7,19 +7,13 @@ import {
 } from '@devvit/web/server';
 import { cleanPostBody } from '../../shared/text';
 import { normalizeName } from '../../shared/food';
-import {
-  coordsFromMapsUrl,
-  isFullMapsLink,
-  isShortMapsLink,
-  placeNameFromMapsUrl,
-} from '../../shared/mapsLink';
 import type {
   ImportPostResponse,
   MapArea,
   TrendingPost,
   TrendingResponse,
   MyPostsResponse,
-  PlaceLinkResponse,
+  PlaceAtResponse,
   PlaceSearchResponse,
   PostDetailResponse,
 } from '../../shared/api';
@@ -379,47 +373,17 @@ export const searchPlaces = async (
   return { places: found.slice(0, 10).map(({ place }) => place) };
 };
 
-/** Thrown for links we can't use; its message is shown to the user. */
-export class PlaceLinkError extends Error {}
+/** Thrown for spots we can't use; its message is shown to the user. */
+export class PlaceError extends Error {}
 
 /**
- * Follows a Google Maps share link (maps.app.goo.gl/…) one hop to the full
- * maps URL it points to. Only the redirect is read, not Google's page.
+ * The address at a spot, from Photon's reverse lookup, plus the nearest
+ * named place there (may be empty). India only, like place search.
  */
-const expandShortLink = async (link: string): Promise<string> => {
-  const res = await fetch(link, { redirect: 'manual' });
-  const location = res.headers.get('location');
-  if (location) return location;
-  // Some runtimes follow redirects anyway; use where we ended up.
-  if (res.url && res.url !== link) return res.url;
-  throw new PlaceLinkError("Couldn't open that link. Try copying it again.");
-};
-
-/**
- * A place from a pasted Google Maps link: its coordinates, the name in the
- * link (if any) and an address looked up from the coordinates. India only.
- */
-export const placeFromMapsLink = async (
-  link: string
-): Promise<PlaceLinkResponse> => {
-  const trimmed = link.trim();
-  let full: string;
-  if (isShortMapsLink(trimmed)) {
-    full = await expandShortLink(trimmed);
-  } else if (isFullMapsLink(trimmed)) {
-    full = trimmed;
-  } else {
-    throw new PlaceLinkError('Paste a Google Maps link to the place.');
-  }
-
-  const coords = coordsFromMapsUrl(full);
-  if (!coords) {
-    throw new PlaceLinkError(
-      "That link doesn't include a location. Open the place in Google Maps and share it again."
-    );
-  }
-
-  // The address, and a check that the place is in India.
+export const placeAt = async (coords: {
+  lat: number;
+  lon: number;
+}): Promise<PlaceAtResponse> => {
   const params = new URLSearchParams({
     lat: String(coords.lat),
     lon: String(coords.lon),
@@ -433,12 +397,11 @@ export const placeFromMapsLink = async (
     ? field(features[0], 'properties')
     : undefined;
   if (text(props, 'countrycode').toUpperCase() !== INDIA_COUNTRY_CODE) {
-    throw new PlaceLinkError('Only places in India can be added for now.');
+    throw new PlaceError('Only places in India can be added for now.');
   }
-
   return {
     place: {
-      name: placeNameFromMapsUrl(full) || text(props, 'name'),
+      name: text(props, 'name'),
       address: addressOf(props),
       lat: coords.lat,
       lon: coords.lon,

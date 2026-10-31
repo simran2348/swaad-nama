@@ -20,6 +20,18 @@
   --color-line: var(--line);
   --color-field: var(--field);
   --color-accent: var(--accent);
+  --color-popover: var(--popover);
+}
+
+/* Floating panels (menus, dropdowns, sheets) are always solid: the theme's
+   surface and field colours are see-through, which is fine for cards on
+   the page but unreadable over other content. */
+:root {
+  --popover: #ffffff;
+}
+
+.dark {
+  --popover: #171717;
 }
 
 /* FoodLoader: each 0.7s bounce starts and ends on the ground, so the veggie
@@ -155,8 +167,7 @@
 .leaflet-tooltip.map-tooltip {
   border: 1px solid var(--line);
   border-radius: 9999px;
-  /* Solid: the theme's field colour is see-through in dark mode. */
-  background: #fff;
+  background: var(--popover);
   color: var(--ink);
   font-family: var(--font-sans);
   font-weight: 700;
@@ -164,17 +175,9 @@
   box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
 }
 
-.dark .leaflet-tooltip.map-tooltip {
-  background: #171717;
-}
-
 /* Leaflet's little arrow under the label, matched to it. */
 .leaflet-tooltip-top.map-tooltip::before {
-  border-top-color: #fff;
-}
-
-.dark .leaflet-tooltip-top.map-tooltip::before {
-  border-top-color: #171717;
+  border-top-color: var(--popover);
 }
 
 .leaflet-container {

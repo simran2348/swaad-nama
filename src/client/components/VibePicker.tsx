@@ -3,6 +3,7 @@ import {
   MAX_VIBE_LENGTH,
   MAX_VIBES,
   VIBE_PRESETS,
+  VIBES_SHOWN,
   cleanVibe,
 } from '../../shared/food';
 
@@ -25,6 +26,7 @@ export const VibePicker = ({
   inputClass: string;
 }) => {
   const [text, setText] = useState('');
+  const [showAll, setShowAll] = useState(false);
   const full = value.length >= MAX_VIBES;
   const has = (vibe: string) =>
     value.some((v) => v.toLowerCase() === vibe.toLowerCase());
@@ -45,6 +47,13 @@ export const VibePicker = ({
     (v) => !VIBE_PRESETS.some((p) => p.toLowerCase() === v.toLowerCase())
   );
 
+  // The first few presets, plus any later ones already picked (so picks
+  // never hide), until "Show more" reveals the rest.
+  const hiddenCount = VIBE_PRESETS.length - VIBES_SHOWN;
+  const presets = showAll
+    ? VIBE_PRESETS
+    : VIBE_PRESETS.filter((vibe, i) => i < VIBES_SHOWN || has(vibe));
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-1.5">
@@ -59,7 +68,7 @@ export const VibePicker = ({
             {vibe} <span aria-hidden>×</span>
           </button>
         ))}
-        {VIBE_PRESETS.map((vibe) => {
+        {presets.map((vibe) => {
           const on = has(vibe);
           return (
             <button
@@ -74,6 +83,16 @@ export const VibePicker = ({
             </button>
           );
         })}
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAll((all) => !all)}
+            aria-expanded={showAll}
+            className={`${chipClass} border-dashed border-cta/60 bg-transparent text-cta hover:bg-cta/10`}
+          >
+            {showAll ? 'Show less' : `Show more (${hiddenCount})`}
+          </button>
+        )}
       </div>
       <div className="flex gap-2">
         <input

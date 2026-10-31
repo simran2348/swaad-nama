@@ -20,10 +20,10 @@ import {
 } from '../lib/art';
 import { EmptyMascot } from './EmptyMascot';
 import { BackButton, EmptyState, LoadingState } from './ui';
+import { RecentRaters } from './RecentRaters';
+import { RatersScreen } from './RatersScreen';
 import { TopRatedRow } from './TopRatedRow';
 import { FoodRaters } from './FoodRaters';
-import { UserSearch } from './UserSearch';
-import { USER_SEARCH_ENABLED } from '../lib/features';
 
 type Result =
   { ok: true; data: CategoriesResponse } | { ok: false; error: string };
@@ -183,7 +183,10 @@ export const Ratings = ({
   /** The viewer, so their own ratings stay editable from anywhere. */
   username: string | null;
 }) => {
+  // Someone else whose ratings are open (from the rater lists).
   const [user, setUser] = useState<string | null>(null);
+  // The "Show more" list of top raters is open.
+  const [browsing, setBrowsing] = useState(false);
   // Top rated: a food's community ranking, then one person's tier list.
   const [community, setCommunity] = useState<string | null>(null);
   const [communityUser, setCommunityUser] = useState<string | null>(null);
@@ -213,6 +216,18 @@ export const Ratings = ({
   const owner = current?.ok ? current.data.username : user;
   const isOwn = user === null;
   const whose = isOwn ? 'Your' : `u/${owner ?? user}'s`;
+
+  /** Opens someone's ratings (or yours, if they tap themselves). */
+  const openUser = (name: string) => {
+    setCategory(null);
+    if (name.toLowerCase() === (username ?? '').toLowerCase()) {
+      // Yourself: your own ratings, so close the Top raters list too.
+      setUser(null);
+      setBrowsing(false);
+    } else {
+      setUser(name);
+    }
+  };
 
   const onRatingChanged = () => {
     forgetMyPosts();
@@ -253,6 +268,17 @@ export const Ratings = ({
     );
   }
 
+  // "Show more": the top raters (someone opened from it shows below).
+  if (browsing && !user) {
+    return (
+      <RatersScreen
+        refreshKey={version}
+        onBack={() => setBrowsing(false)}
+        onOpen={openUser}
+      />
+    );
+  }
+
   if (category) {
     return (
       <RankingScreen
@@ -279,17 +305,33 @@ export const Ratings = ({
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <main className="scroll-area flex flex-1 flex-col gap-3 px-4 pt-4 pb-6">
         {/* Same for everyone, so hidden while viewing someone's ratings. */}
-        {isOwn && <TopRatedRow refreshKey={version} onOpen={setCommunity} />}
-        {USER_SEARCH_ENABLED && (
-          <UserSearch
-            user={isOwn ? null : (owner ?? user)}
-            onSearch={(name) => {
-              setUser(name);
-              setCategory(null);
-            }}
-            onClear={() => setUser(null)}
-            placeholder="See a Redditor's ratings"
-          />
+        {isOwn ? (
+          <>
+            <RecentRaters
+              refreshKey={version}
+              onOpen={openUser}
+              onShowMore={() => setBrowsing(true)}
+            />
+            <TopRatedRow refreshKey={version} onOpen={setCommunity} />
+          </>
+        ) : (
+          <div className="flex items-start gap-1.5">
+            <BackButton onClick={() => setUser(null)} />
+            <div className="min-w-0 pt-0.5">
+              <h1 className="truncate text-xl leading-tight font-extrabold text-ink">
+                u/{owner ?? user}
+              </h1>
+              <p className="truncate text-sm text-muted">
+                {current?.ok
+                  ? `${current.data.categories.length} ${
+                      current.data.categories.length === 1
+                        ? 'food category'
+                        : 'food categories'
+                    } rated`
+                  : 'Their ratings'}
+              </p>
+            </div>
+          </div>
         )}
         {!current ||
         (current.ok && current.data.categories.length === 0 && !imageReady) ? (

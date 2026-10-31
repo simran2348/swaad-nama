@@ -203,6 +203,22 @@ export type FoodRatersResponse = {
   raters: FoodRater[];
 };
 
+/** Someone who has rated food here, for the rater lists on Ratings. */
+export type RaterCard = {
+  username: string;
+  avatarUrl: string | null;
+  /** How many ratings they have. */
+  count: number;
+};
+
+export type RatersResponse = {
+  raters: RaterCard[];
+};
+
+export type RaterSearchResponse = {
+  rater: RaterCard;
+};
+
 /** The SwaadNama team, with their Reddit avatars. */
 export type TeamResponse = {
   members: { username: string; avatarUrl: string | null }[];
@@ -246,10 +262,10 @@ export type PlaceSearchResponse = {
   places: (PlaceLocation & { name: string })[];
 };
 
-/** A place read from a pasted Google Maps link. */
-export type PlaceLinkResponse = {
+/** The address at a spot picked on the map. */
+export type PlaceAtResponse = {
   place: PlaceLocation & {
-    /** From the link, or the nearest named spot; may be empty. */
+    /** The nearest named place there; may be empty. */
     name: string;
   };
 };

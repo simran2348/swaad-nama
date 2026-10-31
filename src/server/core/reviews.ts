@@ -17,6 +17,27 @@ const keys = {
   foodReviews: (food: string) => `food:${normalizeName(food)}:reviews`,
   /** Set once a user's older ratings have been added to the food index. */
   indexed: (username: string) => `user:${username}:indexed:v1`,
+  /** Everyone with ratings, scored by how many they have. */
+  raterCounts: () => 'raters:count',
+  /** Everyone with ratings, scored by when they last added one. */
+  raterRecent: () => 'raters:recent',
+  /** Set once a user's older ratings are counted in the two lists above. */
+  raterIndexed: (username: string) => `user:${username}:raters:v1`,
+};
+
+/** A new rating: one more for its author, who's now the latest rater. */
+const noteRating = async (username: string, at: number) => {
+  await redis.zIncrBy(keys.raterCounts(), username, 1);
+  await redis.zAdd(keys.raterRecent(), { member: username, score: at });
+};
+
+/** A removed rating: one fewer; people with none drop off both lists. */
+const unnoteRating = async (username: string) => {
+  const count = await redis.zIncrBy(keys.raterCounts(), username, -1);
+  if (count <= 0) {
+    await redis.zRem(keys.raterCounts(), [username]);
+    await redis.zRem(keys.raterRecent(), [username]);
+  }
 };
 
 /** Adds (or re-scores) a rating in its food category's community index. */
@@ -115,6 +136,7 @@ export const saveReview = async (
   await countFood(review.food, 1);
   await indexReview(review);
   await countRater(review.username, 1);
+  await noteRating(review.username, createdAt);
   await recordEvent('rating_added');
 
   return review;
@@ -191,6 +213,7 @@ export const deleteReview = async (review: FoodReview) => {
   await countFood(review.food, -1);
   await unindexReview(review);
   await countRater(review.username, -1);
+  await unnoteRating(review.username);
   await recordEvent('rating_deleted');
 };
 
@@ -331,3 +354,46 @@ export const getFoodRatings = async (
     return review ? [review] : [];
   });
 };
+
+/**
+ * Adds a user's older ratings (saved before the rater lists existed) to
+ * them, once. Run when they open the app, so the lists fill in over time.
+ */
+export const indexRater = async (username: string, reviews: FoodReview[]) => {
+  if (await redis.get(keys.raterIndexed(username))) return;
+  if (reviews.length > 0) {
+    const latest = Math.max(...reviews.map((r) => r.createdAt));
+    await redis.zAdd(keys.raterCounts(), {
+      member: username,
+      score: reviews.length,
+    });
+    await redis.zAdd(keys.raterRecent(), { member: username, score: latest });
+  }
+  await redis.set(keys.raterIndexed(username), '1');
+};
+
+/** People who added a rating most recently, newest first. */
+export const getRecentRaters = async (limit: number) => {
+  const recent = await redis.zRange(keys.raterRecent(), 0, limit - 1, {
+    by: 'rank',
+    reverse: true,
+  });
+  const names = recent.map(({ member }) => member);
+  const counts = await Promise.all(
+    names.map((name) => redis.zScore(keys.raterCounts(), name))
+  );
+  return names.map((username, i) => ({ username, count: counts[i] ?? 0 }));
+};
+
+/** People with the most ratings, most first. */
+export const getTopRaters = async (limit: number) => {
+  const top = await redis.zRange(keys.raterCounts(), 0, limit - 1, {
+    by: 'rank',
+    reverse: true,
+  });
+  return top.map(({ member, score }) => ({ username: member, count: score }));
+};
+
+/** How many ratings someone has. */
+export const countRatings = (username: string) =>
+  redis.zCard(keys.userList(username));

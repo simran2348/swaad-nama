@@ -249,3 +249,12 @@ export const StarIcon = ({ className = '' }: IconProps) => (
     <path d="M12 2.8 14.8 8.6l6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9L12 2.8Z" />
   </svg>
 );
+
+/** Two people, for the rater lists. */
+export const UsersIcon = ({ className = '' }: { className?: string }) => (
+  <svg {...strokeProps} aria-hidden className={className}>
+    <circle cx="9" cy="8" r="3.5" />
+    <path d="M2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5" />
+    <path d="M15.5 4.8a3.5 3.5 0 0 1 0 6.4M17.5 14.8c2.1.6 3.6 2.4 4 5.2" />
+  </svg>
+);

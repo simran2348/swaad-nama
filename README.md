@@ -24,9 +24,11 @@ Reddit posts are never changed.
 - **My List**: your posts in the subreddit. Select one or more and tap
   "Add to tier" to rate them. A Trending row at the top shows this week's
   most popular photo posts in the subreddit.
-- **Ratings**: your dishes, each with a ranked list of places. "Top rated"
-  shows the dishes the community rates highest. Tap one to see everyone who
-  rated it and open their list.
+- **Ratings**: your dishes, each with a ranked list of places. At the top,
+  "Recently rated" shows who rated something lately; tap anyone to see their
+  ratings, or "Show more" for the top raters and a search to find anyone.
+  "Top rated" shows the dishes the community rates highest; tap one to see
+  everyone who rated it.
 - **Map**: the places you've rated that have a location.
 - **Settings**: light or dark mode, how tiers work, and a link to message the
   subreddit's moderators with feedback.
@@ -46,19 +48,19 @@ You can edit or delete any of your own ratings at any time.
 
 ## Locations
 
-When adding a place, members can search for it by name or paste a Google
-Maps link to it. Location search is limited to places in India.
+When adding a place, members can search for it by name. If it isn't
+found, they can **pick it on a map**: search for a nearby area or landmark
+to jump there, then move the map until the pin is on the place. Locations
+are limited to places in India.
 
 The app uses these outside services:
 
 - **Photon** (photon.komoot.io), an OpenStreetMap search, to find places
-  and look up addresses.
+  and look up the address of a spot.
 - **CARTO** (basemaps.cartocdn.com) for the map images.
-- **Google Maps short links** (maps.app.goo.gl, goo.gl), only to read the
-  location from a link a member pastes.
 
-Only the place name or link text is sent to these services, never Reddit
-usernames.
+Only the place name or the spot's coordinates are sent to these services,
+never Reddit usernames.
 
 ## Admin
 

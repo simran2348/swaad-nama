@@ -1,31 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { FoodRatersResponse } from '../../shared/api';
 import { fetchFoodRaters } from '../lib/api';
-import { FALLBACK_AVATAR_URL } from '../lib/art';
 import { riseDelay } from '../lib/motion';
 import { HeroBackdrop } from './decor';
+import { RaterAvatar } from './RaterAvatar';
 import { PlateIcon, StarIcon } from './icons';
 import { BackButton, EmptyState, LoadingState } from './ui';
 import { track } from '../lib/track';
 
 type Result =
   { ok: true; data: FoodRatersResponse } | { ok: false; error: string };
-
-/** Round Snoo avatar, showing its head and shoulders. */
-const RaterAvatar = ({ url }: { url: string | null }) => {
-  const [failed, setFailed] = useState(false);
-  return (
-    <span className="flex h-10 w-10 shrink-0 items-end justify-center overflow-hidden rounded-full bg-soft ring-2 ring-surface">
-      <img
-        src={url && !failed ? url : FALLBACK_AVATAR_URL}
-        alt=""
-        loading="lazy"
-        onError={() => setFailed(true)}
-        className="h-[140%] w-auto max-w-none translate-y-[18%] object-contain"
-      />
-    </span>
-  );
-};
 
 /** A total in the top section, e.g. "8.7 / Average". */
 const Stat = ({ value, label }: { value: ReactNode; label: string }) => (

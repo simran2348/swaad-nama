@@ -63,7 +63,7 @@ const Menu = ({ actions }: { actions: MenuAction[] }) => {
           <div className="fixed inset-0" onClick={() => setOpen(false)} />
           <ul
             role="menu"
-            className="menu-pop absolute top-11 right-0 z-10 min-w-44 overflow-hidden rounded-2xl border border-line bg-field py-1 shadow-xl"
+            className="menu-pop absolute top-11 right-0 z-10 min-w-44 overflow-hidden rounded-2xl border border-line bg-popover py-1 shadow-xl"
           >
             {actions.map((action) => (
               <li key={action.label}>

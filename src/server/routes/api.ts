@@ -13,12 +13,15 @@ import type {
   ErrorResponse,
   ImportPostResponse,
   MyPostsResponse,
-  PlaceLinkResponse,
+  PlaceAtResponse,
   PlaceLocation,
   PlaceSearchResponse,
   InitResponse,
   MapAreaResponse,
   TeamResponse,
+  RatersResponse,
+  RaterSearchResponse,
+  RaterCard,
   TopRatedResponse,
   FoodRater,
   FoodRatersResponse,
@@ -50,11 +53,12 @@ import {
   importPost,
   listMyPosts,
   searchPlaces,
-  placeFromMapsLink,
-  PlaceLinkError,
+  placeAt,
+  PlaceError,
 } from '../core/external';
 import { postUrl } from '../core/post';
 import { getAvatarUrl } from '../core/avatars';
+import { backfillRaters } from '../core/raterBackfill';
 import { deletePosts, resetRatings } from '../core/admin';
 import {
   getUserMode,
@@ -72,6 +76,10 @@ import {
   getFoodRatings,
   getTopRatedFoods,
   indexUserReviews,
+  indexRater,
+  getRecentRaters,
+  getTopRaters,
+  countRatings,
   saveReview,
 } from '../core/reviews';
 
@@ -174,6 +182,9 @@ api.get('/init', async (c) => {
     if (username) {
       await indexUserReviews(username, myList).catch((err: unknown) =>
         console.error('Index ratings error:', err)
+      );
+      await indexRater(username, myList).catch((err: unknown) =>
+        console.error('Index rater error:', err)
       );
       // Analytics: active today (and new), plus their rating count.
       await recordOpen(username);
@@ -328,27 +339,33 @@ api.get('/my-posts', async (c) => {
   }
 });
 
-// A place from a pasted Google Maps link (coordinates + address).
-api.get('/places/from-link', async (c) => {
-  const link = c.req.query('url')?.trim() ?? '';
-  if (!link || link.length > 2000) {
+// The address at a spot picked on the map.
+api.get('/places/reverse', async (c) => {
+  const lat = Number(c.req.query('lat'));
+  const lon = Number(c.req.query('lon'));
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lon) ||
+    Math.abs(lat) > 90 ||
+    Math.abs(lon) > 180
+  ) {
     return c.json<ErrorResponse>(
-      { status: 'error', message: 'Paste a Google Maps link to the place.' },
+      { status: 'error', message: 'Pick a spot on the map.' },
       400
     );
   }
   try {
-    return c.json<PlaceLinkResponse>(await placeFromMapsLink(link));
+    return c.json<PlaceAtResponse>(await placeAt({ lat, lon }));
   } catch (error) {
-    if (error instanceof PlaceLinkError) {
+    if (error instanceof PlaceError) {
       return c.json<ErrorResponse>(
         { status: 'error', message: error.message },
         400
       );
     }
-    console.error('API place link error:', error);
+    console.error('API reverse place error:', error);
     return c.json<ErrorResponse>(
-      { status: 'error', message: "Couldn't read that link. Try again." },
+      { status: 'error', message: "Couldn't find the address. Try again." },
       502
     );
   }
@@ -443,6 +460,71 @@ api.get('/foods/:food/raters', async (c) => {
 });
 
 /** The team's avatars (Settings). */
+/** Adds each person's Snoo avatar to a rater list. */
+const withAvatars = (raters: { username: string; count: number }[]) =>
+  Promise.all(
+    raters.map(async (rater): Promise<RaterCard> => ({
+      ...rater,
+      avatarUrl: await getAvatarUrl(rater.username),
+    }))
+  );
+
+/** Finds earlier raters once, so the lists aren't missing anyone. */
+const ensureRatersBackfilled = () =>
+  backfillRaters().catch((err: unknown) =>
+    console.error('Rater backfill error:', err)
+  );
+
+/** People who rated something most recently (the row on Ratings). */
+api.get('/raters/recent', async (c) => {
+  try {
+    await ensureRatersBackfilled();
+    return c.json<RatersResponse>({
+      raters: await withAvatars(await getRecentRaters(10)),
+    });
+  } catch (error) {
+    return failure(c, error, 'recent raters');
+  }
+});
+
+/** People with the most ratings (the "Show more" screen). */
+api.get('/raters/top', async (c) => {
+  try {
+    await ensureRatersBackfilled();
+    return c.json<RatersResponse>({
+      raters: await withAvatars(await getTopRaters(20)),
+    });
+  } catch (error) {
+    return failure(c, error, 'top raters');
+  }
+});
+
+/** Finds one Redditor, with how many ratings they have here. */
+api.get('/raters/search', async (c) => {
+  const input = c.req.query('q') ?? '';
+  try {
+    const username = await resolveUsername(input);
+    if (!username) {
+      return c.json<ErrorResponse>(
+        {
+          status: 'error',
+          message: `Couldn't find u/${input.trim().replace(/^\/?u\//i, '')}`,
+        },
+        404
+      );
+    }
+    const [count, avatarUrl] = await Promise.all([
+      countRatings(username),
+      getAvatarUrl(username),
+    ]);
+    return c.json<RaterSearchResponse>({
+      rater: { username, avatarUrl, count },
+    });
+  } catch (error) {
+    return failure(c, error, 'rater search');
+  }
+});
+
 api.get('/team', async (c) => {
   try {
     const members = await Promise.all(

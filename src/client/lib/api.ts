@@ -13,11 +13,13 @@ import type {
   InitResponse,
   MapAreaResponse,
   TeamResponse,
+  RatersResponse,
+  RaterSearchResponse,
   TopRatedResponse,
   FoodRatersResponse,
   TrendingResponse,
   MyPostsResponse,
-  PlaceLinkResponse,
+  PlaceAtResponse,
   PlaceSearchResponse,
   ProfileResponse,
   SaveModeRequest,
@@ -79,16 +81,29 @@ export const fetchTopRated = () => request<TopRatedResponse>('/api/top-rated');
 export const fetchFoodRaters = (food: string) =>
   request<FoodRatersResponse>(`/api/foods/${encodeURIComponent(food)}/raters`);
 
+export const fetchRecentRaters = () =>
+  request<RatersResponse>('/api/raters/recent');
+
+export const fetchTopRaters = () => request<RatersResponse>('/api/raters/top');
+
+export const searchRater = (name: string) =>
+  request<RaterSearchResponse>(
+    `/api/raters/search?${new URLSearchParams({ q: name })}`
+  );
+
 export const fetchTeam = () => request<TeamResponse>('/api/team');
 
 export const fetchTrending = () => request<TrendingResponse>('/api/trending');
 
 export const fetchMapArea = () => request<MapAreaResponse>('/api/map-area');
 
-/** A place from a pasted Google Maps link. */
-export const placeFromLink = (url: string) =>
-  request<PlaceLinkResponse>(
-    `/api/places/from-link?${new URLSearchParams({ url })}`
+/** The address at a spot picked on the map. */
+export const placeAtSpot = (lat: number, lon: number) =>
+  request<PlaceAtResponse>(
+    `/api/places/reverse?${new URLSearchParams({
+      lat: String(lat),
+      lon: String(lon),
+    })}`
   );
 
 export const searchPlaces = (query: string) =>

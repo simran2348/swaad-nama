@@ -59,20 +59,38 @@ export const formatBudget = (budget: number): string =>
 export const MAX_VIBES = 10;
 export const MAX_VIBE_LENGTH = 24;
 
-/** Quick-pick vibe tags; users can add their own too. */
+/**
+ * Quick-pick vibe tags; users can add their own too. The first
+ * {@link VIBES_SHOWN} are shown straight away, the rest behind "Show more".
+ */
 export const VIBE_PRESETS = [
   'Fine dining',
-  'Street shop',
+  'Street food vibes',
   'Date worthy',
-  'Fun',
-  'Casual',
-  'Hangout worthy',
-  'Chic',
-  'Bougie',
+  'Friends hangout',
+  'Cosy',
+  'Aesthetic',
   'Hidden gem',
   'Underrated af',
   'Overrated',
+  'Worth the hype',
+  'Bougie',
+  'Chill',
+  'Lively',
+  'Rooftop vibes',
+  'Brunch spot',
+  'Solo date',
+  'Work-friendly',
+  'Local favourite',
+  'Value for money',
+  'Comfort food',
+  'Late-night scenes',
+  'No-frills',
+  'Quirky',
+  'Old-school charm',
 ];
+
+export const VIBES_SHOWN = 10;
 
 /** One tidy vibe tag: trimmed, single-spaced and length-capped. */
 export const cleanVibe = (vibe: string): string =>
