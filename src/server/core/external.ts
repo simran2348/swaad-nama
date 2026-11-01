@@ -509,7 +509,8 @@ export const fetchTile = async (
   x: string,
   y: string
 ): Promise<Response | null> => {
-  const path = TILE_STYLES[style];
+  // Own keys only, so names like "constructor" don't count as styles.
+  const path = Object.hasOwn(TILE_STYLES, style) ? TILE_STYLES[style] : null;
   const yMatch = y.match(/^(\d+)(@2x)?$/);
   const zoom = Number(z);
   if (!path || !yMatch || !/^\d+$/.test(x) || !(zoom >= 0 && zoom <= 20)) {
