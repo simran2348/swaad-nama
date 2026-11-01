@@ -81,3 +81,5 @@ personal data.
 The app stores ratings, a user's colour theme and light/dark choice, and simple usage counts
 in Reddit's storage for the app. Nothing is shared outside Reddit except
 the location lookups described above.
+
+See the [Privacy Policy](PRIVACY.md) and [Terms & Conditions](TERMS.md).
