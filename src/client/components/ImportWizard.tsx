@@ -194,7 +194,7 @@ export const ImportWizard = ({
             />
             {/* Title and text come from the post itself. */}
             <ReviewFields
-              ratingOnly
+              hideTitle
               draft={item.draft}
               foods={foods}
               onChange={update}

@@ -25,14 +25,14 @@ export const ReviewFields = ({
   draft,
   onChange,
   foods,
-  ratingOnly = false,
+  hideTitle = false,
 }: {
   draft: ReviewDraft;
   onChange: (patch: Partial<ReviewDraft>) => void;
   /** Existing food categories, offered as quick picks. */
   foods: string[];
-  /** Only the rating part (food, café, rating, budget, vibes); title and text come from the post. */
-  ratingOnly?: boolean;
+  /** Hide the title (it comes from the post when rating your own posts). */
+  hideTitle?: boolean;
 }) => {
   const suggestions = foods
     .filter((f) => f.toLowerCase() !== draft.food.trim().toLowerCase())
@@ -40,7 +40,7 @@ export const ReviewFields = ({
 
   return (
     <>
-      {!ratingOnly && (
+      {!hideTitle && (
         <label className={labelClass}>
           Title
           <input
@@ -121,20 +121,18 @@ export const ReviewFields = ({
         />
       </div>
 
-      {!ratingOnly && (
-        <label className={labelClass}>
-          <span>
-            Review <span className="font-normal text-muted">(optional)</span>
-          </span>
-          <textarea
-            className={`${inputClass} min-h-28`}
-            value={draft.review}
-            maxLength={2000}
-            placeholder="What made it good (or bad)?"
-            onChange={(e) => onChange({ review: e.target.value })}
-          />
-        </label>
-      )}
+      <label className={labelClass}>
+        <span>
+          Review <span className="font-normal text-muted">(optional)</span>
+        </span>
+        <textarea
+          className={`${inputClass} min-h-28`}
+          value={draft.review}
+          maxLength={2000}
+          placeholder="What made it good (or bad)?"
+          onChange={(e) => onChange({ review: e.target.value })}
+        />
+      </label>
     </>
   );
 };

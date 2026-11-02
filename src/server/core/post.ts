@@ -9,7 +9,7 @@ export const postUrl = (postId: string) =>
 /** Creates the main SwaadNama post that hosts the splash screen. */
 export const createHubPost = async () => {
   const post = await reddit.submitCustomPost({
-    title: 'SwaadNama',
+    title: 'SwaadNama: A tale of taste',
   });
   await redis.set(HUB_POST_KEY, post.id);
   return post;
