@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { SectionHeading } from './Brand';
 import type { TrendingResponse } from '../../shared/api';
 import { fetchTrending } from '../lib/api';
 import { riseDelay } from '../lib/motion';
-import { TrendingIcon, UpvoteIcon } from './icons';
+import { UpvoteIcon } from './icons';
 import { PostViewer } from './PostViewer';
 import { track } from '../lib/track';
 
@@ -29,9 +30,19 @@ const CARD = 'h-44 w-32 shrink-0 snap-start rounded-2xl';
  * The last day's most upvoted and discussed posts, as a sideways-scrolling
  * row of photo cards. Hidden when there's nothing to show (or it fails).
  */
-export const TrendingRow = () => {
+export const TrendingRow = ({
+  onLoaded,
+}: {
+  /** How many trending posts there are, once known (null = couldn't load). */
+  onLoaded?: (count: number | null) => void;
+} = {}) => {
   const [data, setData] = useState(trendingCache);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (data) onLoaded?.(data.posts.length);
+    else if (failed) onLoaded?.(null);
+  }, [data, failed, onLoaded]);
   const [viewing, setViewing] = useState<string | null>(null);
 
   useEffect(() => {
@@ -58,15 +69,9 @@ export const TrendingRow = () => {
       aria-label={data ? windowLabel(data.days) : 'Trending'}
       className="flex flex-col gap-2"
     >
-      <h2 className="flex items-center gap-1.5 px-1 text-sm font-extrabold text-ink">
-        <TrendingIcon className="h-4 w-4 text-cta" />
+      <SectionHeading>
         {data ? windowLabel(data.days) : 'Trending'}
-        {data && (
-          <span className="font-semibold text-muted">
-            in r/{data.subredditName}
-          </span>
-        )}
-      </h2>
+      </SectionHeading>
       {/* Bleeds to the screen edges so cards scroll in from the side. */}
       <ul className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto scroll-px-4 px-4 pb-1">
         {!data

@@ -43,6 +43,14 @@ export const SearchIcon = ({ className = '' }: { className?: string }) => (
   </svg>
 );
 
+/** Open book, for the "Journal" tab. */
+export const BookIcon = ({ className = '' }: { className?: string }) => (
+  <svg {...strokeProps} aria-hidden className={className}>
+    <path d="M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2Z" />
+    <path d="M12 6.5v13" />
+  </svg>
+);
+
 /** Folded map, for the "Map" tab. */
 export const MapIcon = ({ className = '' }: { className?: string }) => (
   <svg {...strokeProps} aria-hidden className={className}>

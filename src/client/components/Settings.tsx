@@ -1,4 +1,5 @@
 import { navigateTo, showToast } from '@devvit/web/client';
+import { SectionHeading } from './Brand';
 import type { ComponentType, ReactNode } from 'react';
 import { saveMode } from '../lib/api';
 import { setMode, useTheme, type Mode } from '../lib/theme';
@@ -68,7 +69,7 @@ const Section = ({
   children: ReactNode;
 }) => (
   <section className="flex flex-col gap-2">
-    <h2 className="px-1 text-base font-extrabold text-ink">{title}</h2>
+    <SectionHeading size="base">{title}</SectionHeading>
     {boxed ? (
       <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm backdrop-blur">
         {description && (

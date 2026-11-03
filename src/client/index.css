@@ -23,6 +23,18 @@
   --color-popover: var(--popover);
 }
 
+/* Height of the bottom nav (NAV_HEIGHT, h-16) plus the phone's safe area;
+   screens drawn under the nav, like the map, keep their controls above it. */
+:root {
+  --above-nav: calc(4rem + env(safe-area-inset-bottom));
+}
+
+/* Lift Leaflet's bottom controls (zoom) above the nav. Plain CSS, since
+   Leaflet's own stylesheet outranks Tailwind's layered utilities. */
+.map-under-nav .leaflet-bottom {
+  bottom: var(--above-nav);
+}
+
 /* Floating panels (menus, dropdowns, sheets) are always solid: the theme's
    surface and field colours are see-through, which is fine for cards on
    the page but unreadable over other content. */

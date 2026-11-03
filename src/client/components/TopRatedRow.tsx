@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { SectionHeading } from './Brand';
 import type { TopRatedResponse } from '../../shared/api';
 import { fetchTopRated } from '../lib/api';
 import { riseDelay } from '../lib/motion';
-import { PlateIcon, StarIcon, TrophyIcon } from './icons';
+import { PlateIcon, StarIcon } from './icons';
 import { track } from '../lib/track';
 
 /** Last result, shown straight away while a fresh one loads. */
@@ -46,11 +47,7 @@ export const TopRatedRow = ({
 
   return (
     <section aria-label="Top rated by everyone" className="flex flex-col gap-2">
-      <h2 className="flex items-center gap-1.5 px-1 text-sm font-extrabold text-ink">
-        <TrophyIcon className="h-4 w-4 text-cta" />
-        Top rated
-        <span className="font-semibold text-muted">by everyone</span>
-      </h2>
+      <SectionHeading aside="by everyone">Top rated</SectionHeading>
       {/* Bleeds to the screen edges so cards scroll in from the side. */}
       <ul className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto scroll-px-4 px-4 pb-1">
         {!data

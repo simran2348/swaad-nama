@@ -10,6 +10,7 @@ export const EmptyMascot = ({
   height,
   alt,
   title,
+  small = false,
   children,
 }: {
   src: string;
@@ -18,11 +19,17 @@ export const EmptyMascot = ({
   height: number;
   alt: string;
   title: string;
+  /** A smaller picture, for use under a section heading. */
+  small?: boolean;
   children: ReactNode;
 }) => {
   const [failed, setFailed] = useState(false);
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-8 text-center">
+    <div
+      className={`flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center ${
+        small ? 'py-4' : 'py-8'
+      }`}
+    >
       {!failed && (
         <img
           src={src}
@@ -30,7 +37,7 @@ export const EmptyMascot = ({
           width={width}
           height={height}
           onError={() => setFailed(true)}
-          className="h-40 w-auto max-w-full object-contain"
+          className={`w-auto max-w-full object-contain ${small ? 'h-28' : 'h-40'}`}
         />
       )}
       <h3 className="mt-2 text-lg font-extrabold text-ink">{title}</h3>

@@ -28,7 +28,7 @@ import type {
  * Comment out the entries (leave the list empty) before publishing.
  */
 const TEST_IMPORT_SUBREDDITS: string[] = [
-  // 'punefoodporn', // ⚠️ TESTING ONLY
+  'punefoodporn', // ⚠️ TESTING ONLY: empty this list before publishing
 ];
 
 /**

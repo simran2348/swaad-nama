@@ -12,6 +12,7 @@ import { createRoot } from 'react-dom/client';
 import type { InitResponse } from '../shared/api';
 import { FoodBackground } from './components/FoodBackground';
 import {
+  BookIcon,
   CogIcon,
   ListIcon,
   MapIcon,
@@ -20,6 +21,7 @@ import {
 } from './components/icons';
 import { AdminScreen } from './components/AdminTools';
 import { isAdmin } from '../shared/admin';
+import { Journal } from './components/Journal';
 import { MapView } from './components/MapView';
 import { MyList } from './components/MyList';
 import { Ratings } from './components/Ratings';
@@ -30,7 +32,7 @@ import { trackAppReady } from './lib/track';
 import { NAV_HEIGHT, NavSlotContext } from './lib/navSlot';
 import { initAppTheme, syncMode } from './lib/theme';
 
-type Tab = 'list' | 'ratings' | 'map' | 'settings' | 'admin';
+type Tab = 'list' | 'ratings' | 'journal' | 'map' | 'settings' | 'admin';
 
 type TabInfo = { id: Tab; label: string; icon: ReactNode };
 
@@ -38,6 +40,7 @@ const TABS: TabInfo[] = [
   { id: 'list', label: 'My List', icon: <ListIcon className="h-6 w-6" /> },
   { id: 'ratings', label: 'Ratings', icon: <TrophyIcon className="h-6 w-6" /> },
   { id: 'map', label: 'Map', icon: <MapIcon className="h-6 w-6" /> },
+  { id: 'journal', label: 'Journal', icon: <BookIcon className="h-6 w-6" /> },
   { id: 'settings', label: 'Settings', icon: <CogIcon className="h-6 w-6" /> },
 ];
 
@@ -57,7 +60,13 @@ const BottomNav = ({
   tabs: TabInfo[];
   onChange: (tab: Tab) => void;
 }) => (
-  <nav className="flex rounded-t-3xl border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_-10px_rgb(0_0_0/0.25)] backdrop-blur group-has-[[data-nav-slot]>*]/nav:invisible">
+  <nav
+    // Solid over the map: the usual see-through surface (very faint in
+    // dark mode) lets the bright map show through.
+    className={`flex rounded-t-3xl border-t border-line pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_-10px_rgb(0_0_0/0.25)] backdrop-blur group-has-[[data-nav-slot]>*]/nav:invisible ${
+      tab === 'map' ? 'bg-popover/95' : 'bg-surface'
+    }`}
+  >
     {tabs.map((t) => {
       const active = t.id === tab;
       return (
@@ -119,9 +128,17 @@ export const App = () => {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col">
       <NavSlotContext value={navSlot}>
-        <div className="flex min-h-0 flex-1 flex-col">
+        {/* The map runs under the nav (the nav floats over it); other
+            screens stop above it. */}
+        <div
+          className={
+            tab === 'map'
+              ? 'absolute inset-0 flex flex-col'
+              : 'flex min-h-0 flex-1 flex-col'
+          }
+        >
           {tab === 'list' ? (
             <MyList
               data={data}
@@ -137,6 +154,8 @@ export const App = () => {
               foods={data?.foods ?? []}
               username={data?.username ?? null}
             />
+          ) : tab === 'journal' ? (
+            <Journal />
           ) : tab === 'map' ? (
             <MapView data={data} />
           ) : tab === 'admin' && isAdmin(data?.username) ? (
@@ -147,7 +166,9 @@ export const App = () => {
         </div>
       </NavSlotContext>
       {/* The slot overlays the nav; the nav hides while a bar is in it. */}
-      <div className="group/nav relative">
+      <div
+        className={`group/nav relative z-10 ${tab === 'map' ? 'mt-auto' : ''}`}
+      >
         <div
           ref={setNavSlot}
           data-nav-slot

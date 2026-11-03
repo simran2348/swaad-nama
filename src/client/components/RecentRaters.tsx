@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
+import { SectionHeading } from './Brand';
 import type { RatersResponse } from '../../shared/api';
 import { fetchRecentRaters } from '../lib/api';
 import { riseDelay } from '../lib/motion';
 import { track } from '../lib/track';
-import { UsersIcon } from './icons';
 import { RaterAvatar } from './RaterAvatar';
 
 /** Last result, shown straight away while a fresh one loads. */
@@ -18,14 +18,22 @@ export const RecentRaters = ({
   refreshKey,
   onOpen,
   onShowMore,
+  onLoaded,
 }: {
   /** Change to reload (e.g. after a rating is added or removed). */
   refreshKey: number;
   onOpen: (username: string) => void;
   onShowMore: () => void;
+  /** How many recent raters there are, once known (0 = nobody has rated; null = couldn't load). */
+  onLoaded?: (count: number | null) => void;
 }) => {
   const [data, setData] = useState(recentCache);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (data) onLoaded?.(data.raters.length);
+    else if (failed) onLoaded?.(null);
+  }, [data, failed, onLoaded]);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,19 +55,7 @@ export const RecentRaters = ({
 
   return (
     <section aria-label="Recently rated" className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2 px-1">
-        <h2 className="flex items-center gap-1.5 text-sm font-extrabold text-ink">
-          <UsersIcon className="h-4 w-4 text-cta" />
-          Recently rated
-        </h2>
-        <button
-          type="button"
-          onClick={onShowMore}
-          className="rounded-full px-2 py-0.5 text-xs font-bold text-cta cursor-pointer hover:bg-cta/10"
-        >
-          Show more
-        </button>
-      </div>
+      <SectionHeading>Recently rated</SectionHeading>
       {/* Bleeds to the screen edges so people scroll in from the side. */}
       <ul className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto scroll-px-4 px-4 pt-1.5 pb-1">
         {!data
@@ -99,6 +95,13 @@ export const RecentRaters = ({
               </li>
             ))}
       </ul>
+      <button
+        type="button"
+        onClick={onShowMore}
+        className="self-center rounded-full px-3 py-1 text-xs font-bold text-cta cursor-pointer hover:bg-cta/10"
+      >
+        Show more
+      </button>
     </section>
   );
 };

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import {
   LOGO_HAT,
   LOGO_HAT_FILL,
@@ -38,10 +39,44 @@ export const BrandLogo = ({ className = '' }: { className?: string }) => (
   </svg>
 );
 
-const Swirl = ({ viewBox }: { viewBox: string }) => (
-  <svg viewBox={viewBox} aria-hidden className="h-auto w-12 shrink-0">
+const Swirl = ({
+  viewBox,
+  className = 'w-12',
+}: {
+  viewBox: string;
+  className?: string;
+}) => (
+  <svg viewBox={viewBox} aria-hidden className={`h-auto shrink-0 ${className}`}>
     <path className="fill-cta" fillRule="evenodd" d={TAGLINE_SWIRLS} />
   </svg>
+);
+
+/**
+ * A centred section heading between the tagline's orange swirls, e.g.
+ * "Trending this week". `aside` is quieter text after the title.
+ */
+export const SectionHeading = ({
+  children,
+  aside,
+  size = 'sm',
+}: {
+  children: ReactNode;
+  aside?: ReactNode;
+  /** `base` for the larger Settings headings. */
+  size?: 'sm' | 'base';
+}) => (
+  <h2
+    className={`mb-1.5 flex items-center justify-center gap-2 px-1 text-center font-extrabold text-ink ${
+      size === 'base' ? 'text-base' : 'text-sm'
+    }`}
+  >
+    <Swirl viewBox={SWIRL_LEFT_VIEWBOX} className="w-8" />
+    <span className="min-w-0">
+      {children}
+      {aside && <span className="font-semibold text-muted"> {aside}</span>}
+    </span>
+    <Swirl viewBox={SWIRL_RIGHT_VIEWBOX} className="w-8" />
+  </h2>
 );
 
 /** "A tale of taste" in the app font, between orange swirls. */

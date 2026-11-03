@@ -14,7 +14,6 @@ import {
 import { PLACE_SEARCH_ENABLED } from '../lib/features';
 import { CloseIcon, InfoIcon } from './icons';
 import { ReviewViewer } from './ReviewViewer';
-import { ScreenHeader } from './ui';
 import { track } from '../lib/track';
 import { TIER_COLORS } from '../lib/tiers';
 import { tierFor } from '../../shared/food';
@@ -63,7 +62,7 @@ const PlaceCard = ({
   if (!first) return null;
   // Above Leaflet's zoom buttons (z 1000), which it can overlap on phones.
   return (
-    <div className="absolute inset-x-0 bottom-3 z-[1001] px-4">
+    <div className="absolute inset-x-0 bottom-[calc(var(--above-nav)+0.75rem)] z-[1001] px-4">
       <div
         role="dialog"
         aria-label={`Your ratings at ${first.place}`}
@@ -224,43 +223,28 @@ export const MapView = ({ data }: { data: InitResponse | null }) => {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <ScreenHeader
-        title="Map"
-        subtitle={
-          spots.length
-            ? `${spots.length} ${spots.length === 1 ? 'place' : 'places'} you've been to`
-            : "Places you've been to"
-        }
-        right={
-          <button
-            type="button"
-            onClick={() => setShowInfo((s) => !s)}
-            aria-label="About the map"
-            aria-expanded={showInfo}
-            aria-controls="map-info"
-            className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors cursor-pointer ${
-              showInfo ? 'bg-cta text-cta-ink' : 'text-muted hover:bg-soft'
-            }`}
-          >
-            <InfoIcon className="h-5 w-5" />
-          </button>
-        }
-      />
-      <div className="relative min-h-0 flex-1">
+      {/* The map fills the screen; the bottom nav floats over it, so the
+          zoom buttons (Leaflet's bottom corner) sit just above the nav. */}
+      <div className="map-under-nav relative min-h-0 flex-1">
         <div ref={container} className="absolute inset-0 z-0" />
         {/* Always mounted so it can fade and slide in and out. */}
         <div
           id="map-info"
           role="note"
           aria-hidden={!showInfo}
-          className={`absolute inset-x-0 top-3 z-[500] px-4 transition-all duration-300 ease-out motion-reduce:transition-none ${
+          className={`absolute inset-x-0 top-3 z-[1001] px-4 pt-[env(safe-area-inset-top)] transition-all duration-300 ease-out motion-reduce:transition-none ${
             showInfo
               ? 'translate-y-0 scale-100 opacity-100'
               : 'pointer-events-none -translate-y-2 scale-[0.97] opacity-0'
           }`}
         >
           <div className="mx-auto max-w-sm origin-top rounded-xl border border-line bg-popover px-4 py-3 text-sm text-ink shadow-xl">
-            <p>
+            <p className="font-extrabold">
+              {spots.length
+                ? `${spots.length} ${spots.length === 1 ? 'place' : 'places'} you've been to`
+                : "Places you've been to"}
+            </p>
+            <p className="mt-1">
               {PLACE_SEARCH_ENABLED
                 ? spots.length
                   ? 'Each pin is a place you rated. Tap one to see your rating.'
@@ -278,6 +262,20 @@ export const MapView = ({ data }: { data: InitResponse | null }) => {
             </p>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => setShowInfo((s) => !s)}
+          aria-label="About the map"
+          aria-expanded={showInfo}
+          aria-controls="map-info"
+          className={`absolute bottom-[calc(var(--above-nav)+10px)] left-2.5 z-[1000] flex h-9 w-9 items-center justify-center rounded-full border border-line shadow-lg transition-colors cursor-pointer ${
+            showInfo
+              ? 'bg-cta text-cta-ink'
+              : 'bg-popover text-ink hover:bg-soft'
+          }`}
+        >
+          <InfoIcon className="h-5 w-5" />
+        </button>
         {spot && (
           <PlaceCard
             reviews={spot}

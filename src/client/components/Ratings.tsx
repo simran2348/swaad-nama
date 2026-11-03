@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { SectionHeading } from './Brand';
 import type {
   CategoriesResponse,
   FoodCategory,
@@ -187,6 +188,8 @@ export const Ratings = ({
   const [user, setUser] = useState<string | null>(null);
   // The "Show more" list of top raters is open.
   const [browsing, setBrowsing] = useState(false);
+  // How many people have rated anything here (undefined until known).
+  const [raterCount, setRaterCount] = useState<number | null>();
   // Top rated: a food's community ranking, then one person's tier list.
   const [community, setCommunity] = useState<string | null>(null);
   const [communityUser, setCommunityUser] = useState<string | null>(null);
@@ -301,6 +304,21 @@ export const Ratings = ({
     );
   }
 
+  const ratingsMascot = (
+    <EmptyMascot
+      {...EMPTY_RATINGS_IMAGE}
+      alt="A sad broccoli next to an empty list"
+      title="No categories in your list yet!"
+      small
+    >
+      {isOwn
+        ? owner
+          ? 'Add one from your food list to start sharing your ratings and reviews!'
+          : 'Log in to see your ratings.'
+        : `u/${owner ?? user} hasn't rated anything yet.`}
+    </EmptyMascot>
+  );
+
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <main className="scroll-area flex flex-1 flex-col gap-3 px-4 pt-4 pb-6">
@@ -311,6 +329,7 @@ export const Ratings = ({
               refreshKey={version}
               onOpen={openUser}
               onShowMore={() => setBrowsing(true)}
+              onLoaded={setRaterCount}
             />
             <TopRatedRow refreshKey={version} onOpen={setCommunity} />
           </>
@@ -334,27 +353,30 @@ export const Ratings = ({
           </div>
         )}
         {!current ||
-        (current.ok && current.data.categories.length === 0 && !imageReady) ? (
+        (current.ok &&
+          current.data.categories.length === 0 &&
+          (!imageReady || (isOwn && raterCount === undefined))) ? (
           <LoadingState />
         ) : !current.ok ? (
           <EmptyState>Couldn't load: {current.error}</EmptyState>
         ) : current.data.categories.length === 0 ? (
-          <EmptyMascot
-            {...EMPTY_RATINGS_IMAGE}
-            alt="A sad broccoli next to an empty list"
-            title="No categories in your list yet!"
-          >
-            {isOwn
-              ? owner
-                ? 'Add one from your food list to start sharing your ratings and reviews!'
-                : 'Log in to see your ratings.'
-              : `u/${owner ?? user} hasn't rated anything yet.`}
-          </EmptyMascot>
+          // Nobody has rated anything yet: just the mascot. Otherwise the
+          // community rows show above, and the mascot sits under its heading.
+          isOwn && raterCount === 0 ? (
+            ratingsMascot
+          ) : (
+            <>
+              <div className="pt-1">
+                <SectionHeading>{whose} categories</SectionHeading>
+              </div>
+              {ratingsMascot}
+            </>
+          )
         ) : (
           <>
-            <h2 className="px-1 pt-1 text-sm font-extrabold text-ink">
-              {whose} categories
-            </h2>
+            <div className="pt-1">
+              <SectionHeading>{whose} categories</SectionHeading>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               {current.data.categories.map((c, i) => (
                 <CategoryCard

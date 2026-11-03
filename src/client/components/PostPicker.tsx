@@ -27,11 +27,14 @@ export const PostPicker = ({
   foods,
   onAdded,
   username,
+  onEmptyChange,
 }: {
   foods: string[];
   onAdded: () => void;
   /** View this user's posts instead of your own. */
   username?: string;
+  /** Whether the list loaded with no posts in it. */
+  onEmptyChange?: (empty: boolean) => void;
 }) => {
   const own = !username;
   const navSlot = useContext(NavSlotContext);
@@ -46,6 +49,8 @@ export const PostPicker = ({
   const [viewing, setViewing] = useState<string | null>(null);
   // Preloaded so the empty state never shows before its picture.
   const imageReady = useImageLoaded(EMPTY_LIST_IMAGE.src);
+  const empty = !loading && !error && posts.length === 0;
+  useEffect(() => onEmptyChange?.(empty), [empty, onEmptyChange]);
 
   const applyPage = useCallback((res: MyPostsResponse, append: boolean) => {
     setPosts((prev) => (append ? [...prev, ...res.posts] : res.posts));
