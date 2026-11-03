@@ -4,6 +4,7 @@ import { fetchTopRaters, searchRater } from '../lib/api';
 import { riseDelay } from '../lib/motion';
 import { track } from '../lib/track';
 import { RaterAvatar } from './RaterAvatar';
+import { FavouriteBadge } from './RecentRaters';
 import { BackButton, EmptyState, LoadingState } from './ui';
 import { UserSearch } from './UserSearch';
 
@@ -12,7 +13,10 @@ type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 /** Last top list, shown straight away while a fresh one loads. */
 let topCache: Rater[] | null = null;
 
-/** One person: avatar, username and how many foods they've rated. */
+/**
+ * One person: avatar (with a heart if they're in your favourites), username
+ * and how many foods they've rated.
+ */
 const RaterCard = ({
   rater,
   index,
@@ -32,10 +36,13 @@ const RaterCard = ({
       aria-label={`u/${rater.username}: ${rater.count} items rated`}
       className="flex w-full flex-col items-center gap-2 rounded-2xl border border-line bg-surface px-2 pt-4 pb-3 text-center shadow-sm backdrop-blur cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md"
     >
-      <RaterAvatar
-        url={rater.avatarUrl}
-        className="h-16 w-16 ring-2 ring-cta/40"
-      />
+      <span className="relative block">
+        <RaterAvatar
+          url={rater.avatarUrl}
+          className="h-16 w-16 ring-2 ring-cta/40"
+        />
+        <FavouriteBadge username={rater.username} />
+      </span>
       <span className="w-full truncate text-sm font-bold text-ink">
         {rater.username}
       </span>

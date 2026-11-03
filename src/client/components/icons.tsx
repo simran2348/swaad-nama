@@ -43,6 +43,13 @@ export const SearchIcon = ({ className = '' }: { className?: string }) => (
   </svg>
 );
 
+/** Heart, for favourites. */
+export const HeartIcon = ({ className = '' }: { className?: string }) => (
+  <svg {...strokeProps} aria-hidden className={className}>
+    <path d="M12 20s-7.5-4.6-9.3-9.2C1.6 7.9 3.4 4.5 6.7 4.5c2 0 3.5 1.1 5.3 3.1 1.8-2 3.3-3.1 5.3-3.1 3.3 0 5.1 3.4 4 6.3C19.5 15.4 12 20 12 20Z" />
+  </svg>
+);
+
 /** Open book, for the "Journal" tab. */
 export const BookIcon = ({ className = '' }: { className?: string }) => (
   <svg {...strokeProps} aria-hidden className={className}>

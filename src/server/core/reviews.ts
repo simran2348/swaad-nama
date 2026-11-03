@@ -23,6 +23,10 @@ const keys = {
   raterRecent: () => 'raters:recent',
   /** Set once a user's older ratings are counted in the two lists above. */
   raterIndexed: (username: string) => `user:${username}:raters:v1`,
+  /** A user's favourite food categories, scored by when they were added. */
+  favourites: (username: string) => `user:${username}:favourites`,
+  /** People a user has favourited, scored by when they were added. */
+  favouriteUsers: (username: string) => `user:${username}:favourites:users`,
 };
 
 /** A new rating: one more for its author, who's now the latest rater. */
@@ -292,7 +296,9 @@ export const indexUserReviews = async (
  */
 const summarizeFoods = async (
   foodKeys: string[],
-  limit: number
+  limit: number,
+  /** Keep `foodKeys`' order instead of sorting most-rated first. */
+  keepOrder = false
 ): Promise<TopRatedFood[]> => {
   if (foodKeys.length === 0) return [];
   const [names, ratings] = await Promise.all([
@@ -318,7 +324,9 @@ const summarizeFoods = async (
       };
     })
     .filter((f) => f.count > 0)
-    .sort((a, b) => b.count - a.count || b.average - a.average)
+    .sort((a, b) =>
+      keepOrder ? 0 : b.count - a.count || b.average - a.average
+    )
     .slice(0, limit);
   // Each card shows the photo from that food's best rating.
   return Promise.all(
@@ -440,3 +448,86 @@ export const getTopRaters = async (limit: number) => {
 /** How many ratings someone has. */
 export const countRatings = (username: string) =>
   redis.zCard(keys.userList(username));
+
+/** Most favourites one person can keep. */
+const MAX_FAVOURITES = 100;
+
+/** Your favourite food categories, newest first (ones still rated). */
+export const getFavouriteFoods = async (
+  username: string
+): Promise<TopRatedFood[]> => {
+  const saved = await redis.zRange(
+    keys.favourites(username),
+    0,
+    MAX_FAVOURITES - 1,
+    { by: 'rank', reverse: true }
+  );
+  return summarizeFoods(
+    saved.map(({ member }) => member),
+    MAX_FAVOURITES,
+    true
+  );
+};
+
+/**
+ * Adds a food category to your favourites, or removes it. Returns false when
+ * adding one nobody has rated.
+ */
+export const setFavourite = async (
+  username: string,
+  food: string,
+  favourite: boolean
+): Promise<boolean> => {
+  const foodKey = normalizeName(food);
+  if (!foodKey) return false;
+  const key = keys.favourites(username);
+  if (!favourite) {
+    await redis.zRem(key, [foodKey]);
+    return true;
+  }
+  if ((await redis.zScore(keys.foods(), foodKey)) === undefined) return false;
+  await redis.zAdd(key, { member: foodKey, score: Date.now() });
+  // Past the cap, the oldest ones go.
+  const extra = (await redis.zCard(key)) - MAX_FAVOURITES;
+  if (extra > 0) await redis.zRemRangeByRank(key, 0, extra - 1);
+  return true;
+};
+
+/** Your favourite people, newest first, with how many ratings they have. */
+export const getFavouriteUsers = async (username: string) => {
+  const saved = await redis.zRange(
+    keys.favouriteUsers(username),
+    0,
+    MAX_FAVOURITES - 1,
+    { by: 'rank', reverse: true }
+  );
+  const names = saved.map(({ member }) => member);
+  const counts = await Promise.all(
+    names.map((name) => redis.zScore(keys.raterCounts(), name))
+  );
+  return names.map((name, i) => ({ username: name, count: counts[i] ?? 0 }));
+};
+
+/**
+ * Adds someone to your favourite people, or removes them. Returns false for
+ * yourself, or when adding someone with no ratings here.
+ */
+export const setFavouriteUser = async (
+  username: string,
+  other: string,
+  favourite: boolean
+): Promise<boolean> => {
+  if (!other || other.toLowerCase() === username.toLowerCase()) return false;
+  const key = keys.favouriteUsers(username);
+  if (!favourite) {
+    await redis.zRem(key, [other]);
+    return true;
+  }
+  if ((await redis.zScore(keys.raterCounts(), other)) === undefined) {
+    return false;
+  }
+  await redis.zAdd(key, { member: other, score: Date.now() });
+  const extra = (await redis.zCard(key)) - MAX_FAVOURITES;
+  if (extra > 0) await redis.zRemRangeByRank(key, 0, extra - 1);
+  return true;
+};

@@ -9,6 +9,9 @@ import type {
   CreateReviewRequest,
   CreateReviewResponse,
   ErrorResponse,
+  FavouritesResponse,
+  SaveFavouriteRequest,
+  SaveFavouriteUserRequest,
   ImportPostResponse,
   InitResponse,
   MapAreaResponse,
@@ -83,6 +86,21 @@ export const searchFoods = (query: string) =>
   request<TopRatedResponse>(
     `/api/foods/search?${new URLSearchParams({ q: query })}`
   );
+
+export const fetchFavourites = () =>
+  request<FavouritesResponse>('/api/favourites');
+
+export const saveFavourite = (body: SaveFavouriteRequest) =>
+  request<{ status: 'ok' }>('/api/favourites', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+
+export const saveFavouriteUser = (body: SaveFavouriteUserRequest) =>
+  request<{ status: 'ok' }>('/api/favourites/users', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 
 export const fetchFoodRaters = (food: string) =>
   request<FoodRatersResponse>(`/api/foods/${encodeURIComponent(food)}/raters`);

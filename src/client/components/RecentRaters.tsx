@@ -5,6 +5,8 @@ import { fetchRecentRaters } from '../lib/api';
 import { riseDelay } from '../lib/motion';
 import { track } from '../lib/track';
 import { RaterAvatar } from './RaterAvatar';
+import { HeartIcon } from './icons';
+import { useIsFavouriteUser } from '../lib/favourites';
 
 /** Last result, shown straight away while a fresh one loads. */
 let recentCache: RatersResponse | null = null;
@@ -84,10 +86,13 @@ export const RecentRaters = ({
                   aria-label={`See u/${rater.username}'s ratings`}
                   className="flex w-full flex-col items-center gap-1.5 cursor-pointer transition hover:-translate-y-0.5"
                 >
-                  <RaterAvatar
-                    url={rater.avatarUrl}
-                    className="h-14 w-14 ring-2 ring-cta/50"
-                  />
+                  <span className="relative block">
+                    <RaterAvatar
+                      url={rater.avatarUrl}
+                      className="h-14 w-14 ring-2 ring-cta/50"
+                    />
+                    <FavouriteBadge username={rater.username} />
+                  </span>
                   <span className="w-full truncate text-center text-[11px] font-semibold text-ink">
                     {rater.username}
                   </span>
@@ -105,3 +110,14 @@ export const RecentRaters = ({
     </section>
   );
 };
+
+/** A small red heart on someone you've added to your favourites. */
+export const FavouriteBadge = ({ username }: { username: string }) =>
+  useIsFavouriteUser(username) ? (
+    <span
+      aria-label="In your favourites"
+      className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-red-500 shadow-sm"
+    >
+      <HeartIcon className="h-3 w-3 fill-current" />
+    </span>
+  ) : null;

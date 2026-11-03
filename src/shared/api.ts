@@ -181,6 +181,24 @@ export type TopRatedResponse = {
   foods: TopRatedFood[];
 };
 
+/** Your favourite food categories and people, newest first. */
+export type FavouritesResponse = {
+  foods: TopRatedFood[];
+  users: RaterCard[];
+};
+
+/** Adds a food category to your favourites (or removes it). */
+export type SaveFavouriteRequest = {
+  food: string;
+  favourite: boolean;
+};
+
+/** Adds someone to your favourite people (or removes them). */
+export type SaveFavouriteUserRequest = {
+  username: string;
+  favourite: boolean;
+};
+
 /** One person who rated a food, with their best rating of it. */
 export type FoodRater = {
   username: string;

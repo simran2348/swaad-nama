@@ -3,6 +3,9 @@ import { context, reddit } from '@devvit/web/server';
 import type {
   CategoriesResponse,
   CreateReviewRequest,
+  FavouritesResponse,
+  SaveFavouriteRequest,
+  SaveFavouriteUserRequest,
   CreateReviewResponse,
   FoodReview,
   AdminDeletePostsResponse,
@@ -76,6 +79,10 @@ import {
   getFoodRatings,
   getTopRatedFoods,
   searchFoods,
+  getFavouriteFoods,
+  getFavouriteUsers,
+  setFavourite,
+  setFavouriteUser,
   indexUserReviews,
   indexRater,
   getRecentRaters,
@@ -401,6 +408,61 @@ api.get('/top-rated', async (c) => {
     return c.json<TopRatedResponse>({ foods: await getTopRatedFoods() });
   } catch (error) {
     return failure(c, error, 'top rated');
+  }
+});
+
+/** Your favourite food categories, newest first. */
+api.get('/favourites', async (c) => {
+  const username = await reddit.getCurrentUsername();
+  if (!username) return c.json<FavouritesResponse>({ foods: [], users: [] });
+  try {
+    const [foods, users] = await Promise.all([
+      getFavouriteFoods(username),
+      getFavouriteUsers(username).then(withAvatars),
+    ]);
+    return c.json<FavouritesResponse>({ foods, users });
+  } catch (error) {
+    return failure(c, error, 'favourites');
+  }
+});
+
+/** Adds a food category to your favourites, or removes it. */
+api.post('/favourites', async (c) => {
+  const username = await reddit.getCurrentUsername();
+  if (!username) return unauthorized(c);
+  const body = await c.req.json<Partial<SaveFavouriteRequest>>();
+  const food = String(body.food ?? '').slice(0, 60);
+  try {
+    if (!(await setFavourite(username, food, body.favourite === true))) {
+      return c.json<ErrorResponse>(
+        { status: 'error', message: 'Unknown category' },
+        400
+      );
+    }
+    return c.json<{ status: 'ok' }>({ status: 'ok' });
+  } catch (error) {
+    return failure(c, error, 'save favourite');
+  }
+});
+
+/** Adds someone to your favourite people, or removes them. */
+api.post('/favourites/users', async (c) => {
+  const username = await reddit.getCurrentUsername();
+  if (!username) return unauthorized(c);
+  const body = await c.req.json<Partial<SaveFavouriteUserRequest>>();
+  const other = String(body.username ?? '')
+    .trim()
+    .slice(0, 30);
+  try {
+    if (!(await setFavouriteUser(username, other, body.favourite === true))) {
+      return c.json<ErrorResponse>(
+        { status: 'error', message: "Can't add this person" },
+        400
+      );
+    }
+    return c.json<{ status: 'ok' }>({ status: 'ok' });
+  } catch (error) {
+    return failure(c, error, 'save favourite user');
   }
 });
 

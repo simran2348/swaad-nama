@@ -9,8 +9,9 @@ import { normalizeName } from '../../shared/food';
 import { fetchCategories } from '../lib/api';
 import { riseDelay } from '../lib/motion';
 import { forgetMyPosts } from '../lib/postCache';
+import { toggleFavouriteUser, useIsFavouriteUser } from '../lib/favourites';
 import { HeroBackdrop, PodiumArt } from './decor';
-import { PlateIcon, StarIcon } from './icons';
+import { HeartIcon, PlateIcon, StarIcon } from './icons';
 import { ReviewViewer } from './ReviewViewer';
 import { RankedList, UserReviews } from './reviews';
 import {
@@ -24,6 +25,7 @@ import { BackButton, EmptyState, LoadingState } from './ui';
 import { RecentRaters } from './RecentRaters';
 import { RatersScreen } from './RatersScreen';
 import { CategoriesScreen } from './CategoriesScreen';
+import { Favourites } from './Favourites';
 import { TopRatedRow } from './TopRatedRow';
 import { FoodRaters } from './FoodRaters';
 
@@ -191,6 +193,8 @@ export const Ratings = ({
   const [browsing, setBrowsing] = useState(false);
   // "Search categories": the category search screen is open.
   const [findingFood, setFindingFood] = useState(false);
+  // The Favourites screen is open (from any heart).
+  const [favourites, setFavourites] = useState(false);
   // How many people have rated anything here (undefined until known).
   const [raterCount, setRaterCount] = useState<number | null>();
   // Top rated: a food's community ranking, then one person's tier list.
@@ -274,6 +278,18 @@ export const Ratings = ({
     );
   }
 
+  // Favourites shows above whichever screen its heart was tapped on
+  // (someone opened from it shows above it).
+  if (favourites && !user) {
+    return (
+      <Favourites
+        onBack={() => setFavourites(false)}
+        onOpen={setCommunity}
+        onOpenUser={openUser}
+      />
+    );
+  }
+
   // "Search categories" (a category opened from it shows above it).
   if (findingFood) {
     return (
@@ -334,8 +350,8 @@ export const Ratings = ({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
-      <main className="scroll-area flex flex-1 flex-col gap-3 px-4 pt-4 pb-6">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col">
+      <main className="scroll-area flex flex-1 flex-col gap-3 px-4 pt-4 pb-20">
         {/* Same for everyone, so hidden while viewing someone's ratings. */}
         {isOwn ? (
           <>
@@ -408,6 +424,46 @@ export const Ratings = ({
           </>
         )}
       </main>
+      {/* Floats over the list, just above the nav (your own Ratings only). */}
+      {isOwn && (
+        <button
+          type="button"
+          onClick={() => setFavourites(true)}
+          aria-label="Favourites"
+          title="Favourites"
+          className="absolute right-4 bottom-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-cta text-cta-ink shadow-lg cursor-pointer transition hover:scale-105 hover:brightness-95 active:scale-95"
+        >
+          <HeartIcon className="h-6 w-6" />
+        </button>
+      )}
+      {/* Someone else's ratings: add them to your favourites. */}
+      {!isOwn && current?.ok && current.data.username && (
+        <FavouriteUserButton username={current.data.username} />
+      )}
     </div>
+  );
+};
+
+/** Floating pill on someone's ratings: adds them to your favourites. */
+const FavouriteUserButton = ({ username }: { username: string }) => {
+  const favourite = useIsFavouriteUser(username);
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        toggleFavouriteUser({ username, avatarUrl: null, count: 0 })
+      }
+      aria-pressed={favourite}
+      className={`absolute right-4 bottom-4 z-10 flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold shadow-lg cursor-pointer transition hover:scale-105 active:scale-95 ${
+        favourite
+          ? 'border border-line bg-surface text-ink'
+          : 'bg-cta text-cta-ink hover:brightness-95'
+      }`}
+    >
+      <HeartIcon
+        className={`h-4 w-4 ${favourite ? 'fill-current text-red-500' : ''}`}
+      />
+      {favourite ? 'In favourites' : 'Add user to favourites'}
+    </button>
   );
 };

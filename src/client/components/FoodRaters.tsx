@@ -3,7 +3,8 @@ import type { FoodRatersResponse } from '../../shared/api';
 import { fetchFoodRaters } from '../lib/api';
 import { riseDelay } from '../lib/motion';
 import { RaterAvatar } from './RaterAvatar';
-import { PlateIcon, StarIcon } from './icons';
+import { HeartIcon, PlateIcon, StarIcon } from './icons';
+import { useFavourites } from '../lib/favourites';
 import { BackButton, EmptyState, LoadingState } from './ui';
 import { track } from '../lib/track';
 
@@ -23,7 +24,8 @@ const Stat = ({ value, label }: { value: ReactNode; label: string }) => (
 /**
  * Everyone who rated a food: the totals across all their ratings up top,
  * then a card per person with their best photo of it, their avatar and
- * how many they've rated. Tap a person to see their tier list for it.
+ * how many they've rated. Your favourite people come first (marked with a
+ * heart). Tap a person to see their tier list for it.
  */
 export const FoodRaters = ({
   food,
@@ -52,6 +54,16 @@ export const FoodRaters = ({
 
   const current = result?.for === food ? result : undefined;
   const data = current?.ok ? current.data : null;
+  const { userKeys } = useFavourites();
+  const isFavourite = (username: string) =>
+    userKeys.has(username.toLowerCase());
+  // Favourites first; otherwise the server's order (best rating first).
+  const raters = data
+    ? [...data.raters].sort(
+        (a, b) =>
+          Number(isFavourite(b.username)) - Number(isFavourite(a.username))
+      )
+    : [];
 
   return (
     <div className="relative isolate flex h-full min-h-0 flex-1 flex-col">
@@ -91,7 +103,7 @@ export const FoodRaters = ({
           <EmptyState>No {food} ratings yet.</EmptyState>
         ) : (
           <ul className="grid grid-cols-2 gap-3">
-            {current.data.raters.map((rater, i) => (
+            {raters.map((rater, i) => (
               <li key={rater.username} className="rise" style={riseDelay(i)}>
                 <button
                   onClick={() => {
@@ -122,7 +134,17 @@ export const FoodRaters = ({
                     </span>
                   </span>
                   <span className="flex items-center gap-2 p-2.5">
-                    <RaterAvatar url={rater.avatarUrl} />
+                    <span className="relative shrink-0">
+                      <RaterAvatar url={rater.avatarUrl} />
+                      {isFavourite(rater.username) && (
+                        <span
+                          aria-label="In your favourites"
+                          className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-white text-red-500 shadow-sm"
+                        >
+                          <HeartIcon className="h-2.5 w-2.5 fill-current" />
+                        </span>
+                      )}
+                    </span>
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-bold text-ink">
                         u/{rater.username}
