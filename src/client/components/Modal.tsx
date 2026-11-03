@@ -103,6 +103,7 @@ export const Modal = ({
   onBack,
   onClose,
   footer,
+  waves = false,
   children,
 }: {
   /** Accessible name for the page. */
@@ -115,6 +116,8 @@ export const Modal = ({
   onClose: () => void;
   /** Pinned below the scrolling content, e.g. Save or confirm buttons. */
   footer?: ReactNode;
+  /** Orange waves along the bottom (opened posts and ratings). */
+  waves?: boolean;
   children: ReactNode;
 }) => {
   const palette = useTheme();
@@ -154,7 +157,9 @@ export const Modal = ({
           withArt={false}
           className="absolute inset-0 -z-10"
         />
-        <Waves className="absolute inset-x-0 bottom-0 -z-10 h-32 w-full text-cta" />
+        {waves && (
+          <Waves className="absolute inset-x-0 bottom-0 -z-10 h-32 w-full text-cta" />
+        )}
         <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <button onClick={back} aria-label="Back" className={roundButton}>
             <BackArrow />

@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { FoodRatersResponse } from '../../shared/api';
 import { fetchFoodRaters } from '../lib/api';
 import { riseDelay } from '../lib/motion';
-import { HeroBackdrop } from './decor';
 import { RaterAvatar } from './RaterAvatar';
 import { PlateIcon, StarIcon } from './icons';
 import { BackButton, EmptyState, LoadingState } from './ui';
@@ -56,7 +55,6 @@ export const FoodRaters = ({
 
   return (
     <div className="relative isolate flex h-full min-h-0 flex-1 flex-col">
-      <HeroBackdrop />
       <section className="shrink-0 px-3 pt-3">
         <div className="flex items-start gap-1.5">
           <BackButton onClick={onBack} />

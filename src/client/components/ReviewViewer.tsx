@@ -122,6 +122,7 @@ export const ReviewViewer = ({
   if (draft) {
     return (
       <Modal
+        waves
         label="Edit rating"
         onBack={() => setDraft(null)}
         onClose={onClose}
@@ -155,6 +156,7 @@ export const ReviewViewer = ({
 
   return (
     <Modal
+      waves
       label={current.title || current.place}
       images={current.images}
       actions={actions}

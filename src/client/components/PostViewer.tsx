@@ -38,6 +38,7 @@ export const PostViewer = ({
 
   return (
     <Modal
+      waves
       label={post?.title ?? 'Post'}
       images={post?.images ?? []}
       actions={[
