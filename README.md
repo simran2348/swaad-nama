@@ -55,8 +55,10 @@ are limited to places in India.
 
 The app uses these outside services:
 
-- **Photon** (photon.komoot.io), an OpenStreetMap search, to find places
-  and look up the address of a spot.
+- **Ola Maps** (api.olamaps.io) to find places and look up the address of
+  a spot.
+- **Photon** (photon.komoot.io), an OpenStreetMap search, to find the
+  subreddit's map area, and as a backup for place search.
 - **CARTO** (basemaps.cartocdn.com) for the map images.
 
 Only the place name or the spot's coordinates are sent to these services,

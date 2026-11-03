@@ -1,6 +1,6 @@
 # SwaadNama Terms & Conditions
 
-_Last updated: 1 November 2026_
+_Last updated: 3 November 2026_
 
 These terms cover your use of SwaadNama, a Reddit app for rating the food
 you've posted about in a subreddit. By using the app you agree to them.
@@ -29,8 +29,8 @@ can edit or delete your ratings at any time.
 
 ## Places and maps
 
-Place search and maps use OpenStreetMap data (through Photon) and CARTO map
-images. Place names, addresses and locations may be incomplete or wrong;
+Place search uses Ola Maps (with OpenStreetMap data through Photon as a
+backup), and maps use CARTO map images. Place names, addresses and locations may be incomplete or wrong;
 check before you rely on them.
 
 ## No guarantees

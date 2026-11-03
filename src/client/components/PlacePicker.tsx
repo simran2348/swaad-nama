@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { PlaceLocation, PlaceSearchResponse } from '../../shared/api';
+import type {
+  PlaceLocation,
+  PlaceSearchResponse,
+  PlaceSource,
+} from '../../shared/api';
 import { searchPlaces } from '../lib/api';
 import { PLACE_SEARCH_ENABLED } from '../lib/features';
 import { Spinner } from './ui';
@@ -26,7 +30,11 @@ export const PlacePicker = ({
   onChange: (name: string, location: PlaceLocation | undefined) => void;
   inputClass: string;
 }) => {
-  const [results, setResults] = useState<{ query: string; places: Place[] }>();
+  const [results, setResults] = useState<{
+    query: string;
+    places: Place[];
+    source: PlaceSource | undefined;
+  }>();
   const [focused, setFocused] = useState(false);
   const query = name.trim();
   const searching = PLACE_SEARCH_ENABLED && !location && query.length >= 2;
@@ -36,10 +44,14 @@ export const PlacePicker = ({
     let cancelled = false;
     const timer = setTimeout(() => {
       searchPlaces(query)
-        .then((res) => !cancelled && setResults({ query, places: res.places }))
+        .then(
+          (res) =>
+            !cancelled &&
+            setResults({ query, places: res.places, source: res.source })
+        )
         .catch((err) => {
           console.error('Place search failed', err);
-          if (!cancelled) setResults({ query, places: [] });
+          if (!cancelled) setResults({ query, places: [], source: undefined });
         });
     }, SEARCH_DELAY_MS);
     return () => {
@@ -50,6 +62,7 @@ export const PlacePicker = ({
 
   const places = searching && results?.query === query ? results.places : [];
   const loading = searching && results?.query !== query;
+  const source = results?.query === query ? results.source : undefined;
 
   // When search can't find the place: pick it on a map.
   const [mapOpen, setMapOpen] = useState(false);
@@ -112,7 +125,8 @@ export const PlacePicker = ({
         </p>
       )}
       {focused && searching && (
-        <ul className="absolute inset-x-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-xl border border-line bg-popover shadow-xl">
+        // Tall enough for 5 results (52px each) and the footer; the rest scroll.
+        <ul className="absolute inset-x-0 top-full z-20 mt-1 max-h-[286px] overflow-y-auto rounded-xl border border-line bg-popover shadow-xl">
           {loading ? (
             <li className="flex items-center gap-2 px-3 py-2.5 text-sm text-muted">
               <Spinner className="h-4 w-4 text-cta" /> Searching…
@@ -158,8 +172,24 @@ export const PlacePicker = ({
               </li>
             ))
           )}
-          <li className="border-t border-line px-3 py-1 text-[10px] text-muted">
-            Search by Photon · © OpenStreetMap contributors
+          {/* Which service answered: Ola Maps, or the Photon fallback. */}
+          <li className="sticky bottom-0 flex items-center justify-between gap-2 border-t border-line bg-popover px-3 py-1 text-[10px] text-muted">
+            <span>
+              {source === 'photon'
+                ? 'Search by Photon · © OpenStreetMap contributors'
+                : 'Search by Ola Maps'}
+            </span>
+            {source && (
+              <span
+                className={`rounded px-1.5 py-px font-extrabold tracking-wide ${
+                  source === 'ola'
+                    ? 'bg-cta/15 text-cta'
+                    : 'bg-soft text-soft-ink'
+                }`}
+              >
+                {source === 'ola' ? 'OLA' : 'PHOTON'}
+              </span>
+            )}
           </li>
         </ul>
       )}

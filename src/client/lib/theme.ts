@@ -97,6 +97,9 @@ const CHILI: Palette = {
   }),
 };
 
+// The expanded app draws faint doodles behind everything, so its cards,
+// inputs, chips and lines are solid colours (not see-through like the
+// splash palettes' surfaces).
 const APP_THEMES: Record<Mode, Surface> = {
   light: {
     dark: false,
@@ -108,7 +111,7 @@ const APP_THEMES: Record<Mode, Surface> = {
       cta: '#e8541f',
       soft: '#f0f0eb',
       softInk: '#2b2b28',
-      surface: 'rgb(255 255 255 / 0.9)',
+      surface: '#ffffff',
       line: '#e3e3dc',
     }),
   },
@@ -116,12 +119,18 @@ const APP_THEMES: Record<Mode, Surface> = {
     dark: true,
     background: linear('#18181b', '#1f1f23', '#121214'),
     artColor: '#2a2a2f',
-    colors: darkColors({
-      ink: '#f4f4f2',
-      muted: '#a6a6a0',
-      cta: '#f0643a',
-      softInk: '#e6e6e2',
-    }),
+    colors: {
+      ...darkColors({
+        ink: '#f4f4f2',
+        muted: '#a6a6a0',
+        cta: '#f0643a',
+        softInk: '#e6e6e2',
+      }),
+      soft: '#2c2c31',
+      surface: '#232327',
+      line: '#36363c',
+      field: '#1a1a1d',
+    },
   },
 };
 

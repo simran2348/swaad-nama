@@ -75,6 +75,7 @@ import {
   getUserReviews,
   getFoodRatings,
   getTopRatedFoods,
+  searchFoods,
   indexUserReviews,
   indexRater,
   getRecentRaters,
@@ -404,6 +405,16 @@ api.get('/top-rated', async (c) => {
 });
 
 /** Everyone who rated a food, best rating first, with overall totals. */
+/** Food categories by name (most-rated first); no query = the most-rated. */
+api.get('/foods/search', async (c) => {
+  const query = (c.req.query('q') ?? '').trim().slice(0, 60);
+  try {
+    return c.json<TopRatedResponse>({ foods: await searchFoods(query) });
+  } catch (error) {
+    return failure(c, error, 'food search');
+  }
+});
+
 api.get('/foods/:food/raters', async (c) => {
   const food = c.req.param('food').trim();
   if (!food) {

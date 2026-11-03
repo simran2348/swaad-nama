@@ -104,7 +104,7 @@ export const FoodRaters = ({
                   className="flex w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface text-left shadow-sm backdrop-blur cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md"
                 >
                   {/* Their top-rated photo of this food. */}
-                  <span className="relative block aspect-[4/3] w-full bg-cta/15">
+                  <span className="relative block aspect-[4/3] w-full bg-cta-tint">
                     {rater.best.image ? (
                       <img
                         src={rater.best.image}

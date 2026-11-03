@@ -59,7 +59,7 @@ export const RankedList = ({ rows }: { rows: RankedRow[] }) => {
                 className="h-16 w-16 shrink-0 rounded-xl object-cover shadow-sm"
               />
             ) : (
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-cta/15 text-cta">
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-cta-tint text-cta">
                 <PlateIcon className="h-7 w-7" />
               </span>
             )}

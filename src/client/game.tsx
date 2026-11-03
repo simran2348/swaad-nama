@@ -89,6 +89,8 @@ const BottomNav = ({
 
 export const App = () => {
   const [tab, setTab] = useState<Tab>('list');
+  // Bumped when Ratings is tapped again, to go back to its main screen.
+  const [ratingsReset, setRatingsReset] = useState(0);
   const [data, setData] = useState<InitResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const modeSynced = useRef(false);
@@ -151,6 +153,7 @@ export const App = () => {
             />
           ) : tab === 'ratings' ? (
             <Ratings
+              key={ratingsReset}
               foods={data?.foods ?? []}
               username={data?.username ?? null}
             />
@@ -177,7 +180,13 @@ export const App = () => {
         <BottomNav
           tab={tab}
           tabs={isAdmin(data?.username) ? [...TABS, ADMIN_TAB] : TABS}
-          onChange={setTab}
+          onChange={(next) => {
+            // Tapping Ratings while on it closes any screen opened inside.
+            if (next === 'ratings' && tab === 'ratings') {
+              setRatingsReset((n) => n + 1);
+            }
+            setTab(next);
+          }}
         />
       </div>
     </div>
@@ -188,7 +197,7 @@ initAppTheme();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <FoodBackground />
+    <FoodBackground withPattern />
     {/* Reddit lets users widen the expanded view (desktop / fullscreen);
         keep the app a phone-like column and let the background fill the rest. */}
     <div className="mx-auto h-full w-full max-w-[768px] border-line min-[769px]:border-x min-[769px]:shadow-xl">

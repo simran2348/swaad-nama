@@ -14,6 +14,7 @@ import { fetchProfile } from './lib/api';
 import {
   ART_URL,
   FALLBACK_AVATAR_URL,
+  FOOD_PATTERN_URL,
   useFontLoaded,
   useImageLoaded,
 } from './lib/art';
@@ -74,6 +75,14 @@ export const Splash = () => {
   );
 
   const comingSoon = profile?.canUse === false;
+
+  // Once the splash is up, quietly fetch the expanded app's background so
+  // it's ready when Explore opens it (not waited on: the feed stays fast).
+  useEffect(() => {
+    if (intro) return;
+    const img = new Image();
+    img.src = FOOD_PATTERN_URL;
+  }, [intro]);
 
   useEffect(() => {
     fetchProfile()

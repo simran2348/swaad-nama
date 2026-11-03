@@ -258,8 +258,13 @@ export type MapAreaResponse = {
   area: MapArea | null;
 };
 
+/** Which service answered a place search. */
+export type PlaceSource = 'ola' | 'photon';
+
 export type PlaceSearchResponse = {
   places: (PlaceLocation & { name: string })[];
+  /** Absent when no search ran (e.g. the query was too short). */
+  source?: PlaceSource;
 };
 
 /** The address at a spot picked on the map. */

@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 
 export const ART_URL = '/h2.png';
 
+/**
+ * Faint food doodles behind the expanded app: one seamless tile, lines in
+ * the alpha channel, repeated.
+ */
+export const FOOD_PATTERN_URL = '/food-pattern.png';
+
 /** Empty-state illustrations (with their pixel sizes): My List and Ratings. */
 export const EMPTY_LIST_IMAGE = {
   src: '/no-rating.png',

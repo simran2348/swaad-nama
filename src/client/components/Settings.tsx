@@ -108,7 +108,7 @@ const About = () => (
           className="rise flex flex-col items-center gap-1.5"
           style={riseDelay(i)}
         >
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-cta/15 text-cta">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-cta-tint text-cta">
             <Icon className="h-5 w-5" />
           </span>
           <span className="text-xs font-extrabold text-ink">{label}</span>

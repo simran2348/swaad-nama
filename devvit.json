@@ -19,7 +19,7 @@
   "permissions": {
     "http": {
       "enable": true,
-      "domains": ["photon.komoot.io", "basemaps.cartocdn.com"]
+      "domains": ["api.olamaps.io", "photon.komoot.io", "basemaps.cartocdn.com"]
     },
     "reddit": true,
     "journeys": true
@@ -66,6 +66,12 @@
         "type": "string",
         "label": "CARTO basemaps API key",
         "helpText": "Free key from carto.com/basemaps/apikey, used for the map tiles.",
+        "isSecret": true
+      },
+      "olaMapsApiKey": {
+        "type": "string",
+        "label": "Ola Maps API key",
+        "helpText": "Key from maps.olakrutrim.com, used for place search and address lookups.",
         "isSecret": true
       }
     }

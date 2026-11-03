@@ -23,6 +23,7 @@ import { EmptyMascot } from './EmptyMascot';
 import { BackButton, EmptyState, LoadingState } from './ui';
 import { RecentRaters } from './RecentRaters';
 import { RatersScreen } from './RatersScreen';
+import { CategoriesScreen } from './CategoriesScreen';
 import { TopRatedRow } from './TopRatedRow';
 import { FoodRaters } from './FoodRaters';
 
@@ -43,7 +44,7 @@ const CategoryCard = ({
     onClick={onOpen}
     style={riseDelay(index)}
     aria-label={`${category.food}: average ${category.average} out of 10 from ${category.count} ratings`}
-    className="rise relative isolate aspect-[4/5] transform-gpu overflow-hidden rounded-2xl bg-cta/15 text-left shadow-md cursor-pointer transition hover:-translate-y-0.5 hover:shadow-lg"
+    className="rise relative isolate aspect-[4/5] transform-gpu overflow-hidden rounded-2xl bg-cta-tint text-left shadow-md cursor-pointer transition hover:-translate-y-0.5 hover:shadow-lg"
   >
     {category.top?.image ? (
       <img
@@ -188,6 +189,8 @@ export const Ratings = ({
   const [user, setUser] = useState<string | null>(null);
   // The "Show more" list of top raters is open.
   const [browsing, setBrowsing] = useState(false);
+  // "Search categories": the category search screen is open.
+  const [findingFood, setFindingFood] = useState(false);
   // How many people have rated anything here (undefined until known).
   const [raterCount, setRaterCount] = useState<number | null>();
   // Top rated: a food's community ranking, then one person's tier list.
@@ -271,6 +274,17 @@ export const Ratings = ({
     );
   }
 
+  // "Search categories" (a category opened from it shows above it).
+  if (findingFood) {
+    return (
+      <CategoriesScreen
+        refreshKey={version}
+        onBack={() => setFindingFood(false)}
+        onOpen={setCommunity}
+      />
+    );
+  }
+
   // "Show more": the top raters (someone opened from it shows below).
   if (browsing && !user) {
     return (
@@ -331,7 +345,11 @@ export const Ratings = ({
               onShowMore={() => setBrowsing(true)}
               onLoaded={setRaterCount}
             />
-            <TopRatedRow refreshKey={version} onOpen={setCommunity} />
+            <TopRatedRow
+              refreshKey={version}
+              onOpen={setCommunity}
+              onSearch={() => setFindingFood(true)}
+            />
           </>
         ) : (
           <div className="flex items-start gap-1.5">
@@ -377,7 +395,7 @@ export const Ratings = ({
             <div className="pt-1">
               <SectionHeading>{whose} categories</SectionHeading>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {current.data.categories.map((c, i) => (
                 <CategoryCard
                   key={c.food}

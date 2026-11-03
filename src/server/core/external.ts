@@ -35,7 +35,7 @@ const TEST_IMPORT_SUBREDDITS: string[] = [
  * For testing only: read trending posts from this subreddit instead of the
  * one the app is installed in. Keep '' in published builds.
  */
-const TRENDING_SUBREDDIT_OVERRIDE = '';
+const TRENDING_SUBREDDIT_OVERRIDE = 'punefoodporn'; // ⚠️ TESTING ONLY: empty this before publishing
 
 const trendingSubreddit = () =>
   TRENDING_SUBREDDIT_OVERRIDE || (context.subredditName ?? '');
@@ -286,7 +286,8 @@ export const getTrendingPosts = async (): Promise<TrendingResponse> => {
 };
 
 // ---------------------------------------------------------------------------
-// Place search (Photon: free OpenStreetMap geocoder, no API key)
+// Photon (free OpenStreetMap geocoder, no API key): the map area lookup,
+// and the fallback for place search when Ola Maps isn't available
 // ---------------------------------------------------------------------------
 
 const PHOTON_URL = 'https://photon.komoot.io/api/';
@@ -333,9 +334,9 @@ const addressOf = (props: unknown): string => {
     .join(', ');
 };
 
-export const searchPlaces = async (
+/** Photon place search: the fallback when Ola Maps isn't available. */
+const photonSearch = async (
   query: string,
-  /** Prefer results near here (the subreddit's map area). */
   near?: { lat: number; lon: number }
 ): Promise<PlaceSearchResponse> => {
   const params = new URLSearchParams({
@@ -370,17 +371,17 @@ export const searchPlaces = async (
   );
 
   found.sort((a, b) => Number(b.isFood) - Number(a.isFood));
-  return { places: found.slice(0, 10).map(({ place }) => place) };
+  return {
+    places: found.slice(0, 10).map(({ place }) => place),
+    source: 'photon',
+  };
 };
 
 /** Thrown for spots we can't use; its message is shown to the user. */
 export class PlaceError extends Error {}
 
-/**
- * The address at a spot, from Photon's reverse lookup, plus the nearest
- * named place there (may be empty). India only, like place search.
- */
-export const placeAt = async (coords: {
+/** Photon reverse lookup: the fallback when Ola Maps isn't available. */
+const photonPlaceAt = async (coords: {
   lat: number;
   lon: number;
 }): Promise<PlaceAtResponse> => {
@@ -407,6 +408,221 @@ export const placeAt = async (coords: {
       lon: coords.lon,
     },
   };
+};
+
+// ---------------------------------------------------------------------------
+// Ola Maps: place search and address lookups (far better coverage of Indian
+// restaurants than OpenStreetMap). Photon above is the fallback.
+// ---------------------------------------------------------------------------
+
+const OLA_URL = 'https://api.olamaps.io/places/v1';
+
+/** India's rough bounds; used to keep places India-only. */
+const INDIA_BOUNDS = { west: 68.1, south: 6.5, east: 97.5, north: 35.7 };
+const inIndia = ({ lat, lon }: { lat: number; lon: number }) =>
+  lat >= INDIA_BOUNDS.south &&
+  lat <= INDIA_BOUNDS.north &&
+  lon >= INDIA_BOUNDS.west &&
+  lon <= INDIA_BOUNDS.east;
+
+// Ola place types that count as food spots (listed first in results).
+const OLA_FOOD_TYPES = new Set([
+  'restaurant',
+  'cafe',
+  'food',
+  'bakery',
+  'bar',
+  'meal_takeaway',
+  'meal_delivery',
+]);
+
+/** Repeat searches and spot lookups are served from Redis, saving quota. */
+const SEARCH_CACHE_MS = 3 * DAY_MS;
+const SPOT_CACHE_MS = 7 * DAY_MS;
+
+/** A picked spot names the nearest food place only if it's this close. */
+const SPOT_PLACE_MAX_M = 40;
+
+/**
+ * Ola Maps needs an API key, kept as a secret app setting. Set it with
+ * `npx devvit settings set olaMapsApiKey`. Without one, Photon is used.
+ */
+let olaKey: string | undefined;
+const getOlaKey = async (): Promise<string> => {
+  if (olaKey) return olaKey;
+  const value = (await settings.get<string>('olaMapsApiKey'))?.trim() ?? '';
+  if (value) olaKey = value;
+  return value;
+};
+
+const olaGet = async (
+  path: string,
+  params: Record<string, string>,
+  key: string
+): Promise<unknown> => {
+  const query = new URLSearchParams({ ...params, api_key: key });
+  const res = await fetch(`${OLA_URL}/${path}?${query}`, {
+    headers: { 'X-Request-Id': crypto.randomUUID() },
+  });
+  if (!res.ok) throw new Error(`Ola Maps ${path} failed (${res.status})`);
+  return res.json();
+};
+
+const readCache = async <T>(key: string): Promise<T | null> => {
+  const value = await redis.get(key);
+  if (!value) return null;
+  try {
+    const parsed: T = JSON.parse(value);
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+const writeCache = (key: string, value: unknown, ms: number) =>
+  redis.set(key, JSON.stringify(value), {
+    expiration: new Date(Date.now() + ms),
+  });
+
+/** A result's coordinates from Ola's `geometry.location`. */
+const olaPoint = (result: unknown): { lat: number; lon: number } | null => {
+  const location = field(field(result, 'geometry'), 'location');
+  const lat = field(location, 'lat');
+  const lon = field(location, 'lng');
+  return typeof lat === 'number' && typeof lon === 'number'
+    ? { lat, lon }
+    : null;
+};
+
+const isOlaFood = (result: unknown) => {
+  const types = field(result, 'types');
+  return (
+    Array.isArray(types) &&
+    types.some((t) => typeof t === 'string' && OLA_FOOD_TYPES.has(t))
+  );
+};
+
+const olaSearch = async (
+  query: string,
+  key: string,
+  near?: { lat: number; lon: number }
+): Promise<PlaceSearchResponse> => {
+  const json = await olaGet(
+    'autocomplete',
+    {
+      input: query,
+      ...(near ? { location: `${near.lat},${near.lon}` } : {}),
+    },
+    key
+  );
+  const predictions = field(json, 'predictions');
+  const found = (Array.isArray(predictions) ? predictions : []).flatMap(
+    (prediction: unknown) => {
+      const point = olaPoint(prediction);
+      const formatting = field(prediction, 'structured_formatting');
+      const name =
+        text(formatting, 'main_text') ||
+        text(prediction, 'description').split(',')[0]?.trim() ||
+        '';
+      if (!name || !point || !inIndia(point)) return [];
+      return [
+        {
+          place: {
+            name,
+            address: text(formatting, 'secondary_text'),
+            ...point,
+          },
+          isFood: isOlaFood(prediction),
+        },
+      ];
+    }
+  );
+  found.sort((a, b) => Number(b.isFood) - Number(a.isFood));
+  return {
+    places: found.slice(0, 10).map(({ place }) => place),
+    source: 'ola',
+  };
+};
+
+const olaPlaceAt = async (
+  coords: { lat: number; lon: number },
+  key: string
+): Promise<PlaceAtResponse> => {
+  const json = await olaGet(
+    'reverse-geocode',
+    { latlng: `${coords.lat},${coords.lon}` },
+    key
+  );
+  const results = field(json, 'results');
+  const list: unknown[] = Array.isArray(results) ? results : [];
+  // Name the spot after a food place right there, if there is one.
+  const food = list.find((result) => {
+    const distance = field(result, 'distance_meters');
+    return (
+      isOlaFood(result) &&
+      typeof distance === 'number' &&
+      distance <= SPOT_PLACE_MAX_M
+    );
+  });
+  const [nearest] = list;
+  const pick = food ?? nearest;
+  const name = food ? text(food, 'name') : '';
+  // Ola's address starts with the place's own name; drop it.
+  const full = text(pick, 'formatted_address');
+  const ownName = text(pick, 'name');
+  const address =
+    ownName && full.startsWith(`${ownName}, `)
+      ? full.slice(ownName.length + 2)
+      : full;
+  return { place: { name, address, lat: coords.lat, lon: coords.lon } };
+};
+
+/** Search places in India by name, nearest the subreddit's area first. */
+export const searchPlaces = async (
+  query: string,
+  /** Prefer results near here (the subreddit's map area). */
+  near?: { lat: number; lon: number }
+): Promise<PlaceSearchResponse> => {
+  const key = await getOlaKey();
+  if (!key) return photonSearch(query, near);
+  const area = near ? `${near.lat.toFixed(1)},${near.lon.toFixed(1)}` : 'in';
+  const cacheKey = `places:ola:v2:${area}:${normalizeName(query)}`;
+  const cached = await readCache<PlaceSearchResponse>(cacheKey);
+  if (cached) return cached;
+  try {
+    const result = await olaSearch(query, key, near);
+    await writeCache(cacheKey, result, SEARCH_CACHE_MS);
+    return result;
+  } catch (error) {
+    console.error('Ola place search failed; using Photon:', error);
+    return photonSearch(query, near);
+  }
+};
+
+/**
+ * The address at a spot, plus the food place right there if there is one
+ * (else no name). India only, like place search.
+ */
+export const placeAt = async (coords: {
+  lat: number;
+  lon: number;
+}): Promise<PlaceAtResponse> => {
+  if (!inIndia(coords)) {
+    throw new PlaceError('Only places in India can be added for now.');
+  }
+  const key = await getOlaKey();
+  if (!key) return photonPlaceAt(coords);
+  const cacheKey = `spot:ola:v1:${coords.lat.toFixed(5)},${coords.lon.toFixed(5)}`;
+  const cached = await readCache<PlaceAtResponse>(cacheKey);
+  if (cached) return cached;
+  try {
+    const result = await olaPlaceAt(coords, key);
+    await writeCache(cacheKey, result, SPOT_CACHE_MS);
+    return result;
+  } catch (error) {
+    console.error('Ola address lookup failed; using Photon:', error);
+    return photonPlaceAt(coords);
+  }
 };
 
 // ---------------------------------------------------------------------------

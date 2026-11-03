@@ -286,19 +286,19 @@ export const indexUserReviews = async (
   await redis.set(keys.indexed(username), '1');
 };
 
-/** Food categories with the best average rating across everyone. */
-export const getTopRatedFoods = async (limit = 10): Promise<TopRatedFood[]> => {
-  // The most-rated foods are the candidates; ranked by average below.
-  const foods = await redis.zRange(keys.foods(), 0, 49, {
-    by: 'rank',
-    reverse: true,
-  });
-  if (foods.length === 0) return [];
-  const keysList = foods.map(({ member }) => member);
+/**
+ * Card details for food categories (by key): name, rating count, average
+ * and the photo from its best rating. Most-rated first, then best average.
+ */
+const summarizeFoods = async (
+  foodKeys: string[],
+  limit: number
+): Promise<TopRatedFood[]> => {
+  if (foodKeys.length === 0) return [];
   const [names, ratings] = await Promise.all([
-    redis.hMGet(keys.foodNames(), keysList),
+    redis.hMGet(keys.foodNames(), foodKeys),
     Promise.all(
-      keysList.map((food) =>
+      foodKeys.map((food) =>
         redis.zRange(keys.foodReviews(food), 0, -1, {
           by: 'rank',
           reverse: true,
@@ -306,7 +306,7 @@ export const getTopRatedFoods = async (limit = 10): Promise<TopRatedFood[]> => {
       )
     ),
   ]);
-  const ranked = keysList
+  const ranked = foodKeys
     .map((food, i) => {
       const scores = ratings[i] ?? [];
       const total = scores.reduce((sum, { score }) => sum + score, 0);
@@ -318,7 +318,7 @@ export const getTopRatedFoods = async (limit = 10): Promise<TopRatedFood[]> => {
       };
     })
     .filter((f) => f.count > 0)
-    .sort((a, b) => b.average - a.average || b.count - a.count)
+    .sort((a, b) => b.count - a.count || b.average - a.average)
     .slice(0, limit);
   // Each card shows the photo from that food's best rating.
   return Promise.all(
@@ -335,6 +335,49 @@ export const getTopRatedFoods = async (limit = 10): Promise<TopRatedFood[]> => {
       };
     })
   );
+};
+
+/** The most-rated food categories across everyone (ties: best average). */
+export const getTopRatedFoods = async (limit = 10): Promise<TopRatedFood[]> => {
+  const foods = await redis.zRange(keys.foods(), 0, limit - 1, {
+    by: 'rank',
+    reverse: true,
+  });
+  return summarizeFoods(
+    foods.map(({ member }) => member),
+    limit
+  );
+};
+
+/** Most matches to look up for one category search. */
+const FOOD_SEARCH_SCAN = 50;
+
+/**
+ * Food categories whose name contains `query`, most-rated first. An empty
+ * query lists the most-rated ones.
+ */
+export const searchFoods = async (
+  query: string,
+  limit = 20
+): Promise<TopRatedFood[]> => {
+  const needle = normalizeName(query);
+  if (!needle) return getTopRatedFoods(limit);
+  // Every category, most-rated first; matched by its key or display name.
+  const all = await redis.zRange(keys.foods(), 0, -1, {
+    by: 'rank',
+    reverse: true,
+  });
+  const foodKeys = all.map(({ member }) => member);
+  const names = foodKeys.length
+    ? await redis.hMGet(keys.foodNames(), foodKeys)
+    : [];
+  const matches = foodKeys
+    .filter(
+      (key, i) =>
+        key.includes(needle) || normalizeName(names[i] ?? '').includes(needle)
+    )
+    .slice(0, FOOD_SEARCH_SCAN);
+  return summarizeFoods(matches, limit);
 };
 
 /** Everyone's ratings in one food category, best first (up to `limit`). */

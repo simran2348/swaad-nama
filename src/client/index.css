@@ -21,6 +21,8 @@
   --color-field: var(--field);
   --color-accent: var(--accent);
   --color-popover: var(--popover);
+  /* The orange at 15% over a card, but solid (no doodles showing through). */
+  --color-cta-tint: color-mix(in srgb, var(--cta) 15%, var(--surface));
 }
 
 /* Height of the bottom nav (NAV_HEIGHT, h-16) plus the phone's safe area;

@@ -72,8 +72,10 @@ export const TrendingRow = ({
       <SectionHeading>
         {data ? windowLabel(data.days) : 'Trending'}
       </SectionHeading>
-      {/* Bleeds to the screen edges so cards scroll in from the side. */}
-      <ul className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto scroll-px-4 px-4 pb-1">
+      {/* Bleeds to the screen edges so cards scroll in from the side. A
+          sideways-scrolling row clips above and below too, so it gets room
+          for the cards' shadows and hover lift (taken back by -my). */}
+      <ul className="no-scrollbar -mx-4 -my-3 flex snap-x gap-3 overflow-x-auto scroll-px-4 px-4 py-3">
         {!data
           ? [0, 1, 2].map((i) => (
               <li

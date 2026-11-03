@@ -78,6 +78,12 @@ export const importPost = (postId: string) =>
 
 export const fetchTopRated = () => request<TopRatedResponse>('/api/top-rated');
 
+/** Food categories whose name contains `query` (empty: the most-rated). */
+export const searchFoods = (query: string) =>
+  request<TopRatedResponse>(
+    `/api/foods/search?${new URLSearchParams({ q: query })}`
+  );
+
 export const fetchFoodRaters = (food: string) =>
   request<FoodRatersResponse>(`/api/foods/${encodeURIComponent(food)}/raters`);
 

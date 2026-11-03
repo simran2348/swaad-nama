@@ -237,7 +237,7 @@ export const AdminScreen = ({ subredditName }: { subredditName: string }) => {
               subreddit only. */}
           <div className="flex flex-col items-center gap-1 text-center">
             {subredditName && (
-              <p className="rounded-full bg-cta/15 px-3 py-1 text-sm font-extrabold text-cta">
+              <p className="rounded-full bg-cta-tint px-3 py-1 text-sm font-extrabold text-cta">
                 r/{subredditName}
               </p>
             )}

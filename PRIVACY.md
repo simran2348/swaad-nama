@@ -1,6 +1,6 @@
 # SwaadNama Privacy Policy
 
-_Last updated: 1 November 2026_
+_Last updated: 3 November 2026_
 
 SwaadNama is a Reddit app that lets members of a subreddit rate the food
 they've posted about and see the community's favourite places. This policy
@@ -33,12 +33,15 @@ or any data from outside the subreddit.
 
 ## What we send outside Reddit
 
-The app uses two outside services, contacted by the app's server rather
+The app uses three outside services, contacted by the app's server rather
 than your device:
 
-- **Photon** (photon.komoot.io), an OpenStreetMap search: when you search
-  for a place, the text you type is sent to find matching places. When you
-  pick a spot on the map, its coordinates are sent to look up the address.
+- **Ola Maps** (api.olamaps.io): when you search for a place, the text you
+  type and the subreddit's map area are sent to find matching places. When
+  you pick a spot on the map, its coordinates are sent to look up the
+  address.
+- **Photon** (photon.komoot.io), an OpenStreetMap search: used to find the
+  subreddit's map area, and for place searches if Ola Maps is unavailable.
 - **CARTO** (basemaps.cartocdn.com): map images are loaded for the area
   you're viewing.
 
