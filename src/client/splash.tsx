@@ -125,10 +125,12 @@ export const Splash = () => {
       >
         <CogIcon className="h-5 w-5" />
       </button>
-      <main className="flex h-full flex-col items-center justify-center gap-3 overflow-y-auto px-6 py-5 text-center">
+      {/* Never scrolls: inline posts must let the feed scroll past them
+          (Reddit's scroll-trap rule). Short screens shrink it to fit. */}
+      <main className="flex h-full flex-col items-center justify-center gap-3 overflow-hidden px-6 py-5 text-center [@media(max-height:460px)]:gap-2 [@media(max-height:460px)]:py-3 [@media(max-height:360px)]:gap-1.5 [@media(max-height:360px)]:py-2">
         <div className="flex flex-col items-center">
           <h1>
-            <BrandLogo className="h-auto w-56" />
+            <BrandLogo className="h-auto w-56 [@media(max-height:460px)]:w-44 [@media(max-height:360px)]:w-36" />
           </h1>
           <BrandTagline className="mt-1" />
         </div>
@@ -142,7 +144,7 @@ export const Splash = () => {
           <Avatar
             url={profile?.avatarUrl ?? null}
             username={profile?.username ?? null}
-            className="relative h-24"
+            className="relative h-24 [@media(max-height:460px)]:h-20 [@media(max-height:360px)]:h-14"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -151,7 +153,7 @@ export const Splash = () => {
               ? `Hey u/${profile.username}!`
               : 'Welcome, foodie!'}
           </h2>
-          <p className="max-w-sm text-[15px] leading-snug font-semibold text-ink/85">
+          <p className="max-w-sm text-[15px] leading-snug font-semibold text-ink/85 [@media(max-height:360px)]:text-[13px]">
             Rate the spots you eat at, build your own tier list for every dish,
             and peek at other foodies' favourites.
           </p>
@@ -187,7 +189,8 @@ export const Splash = () => {
                 <CloseIcon className="h-4 w-4" />
               </button>
             </div>
-            <div className="scroll-area min-h-0 flex-1 px-4 pt-1 pb-5">
+            {/* No inner scrolling inline; the grid is sized to fit. */}
+            <div className="min-h-0 flex-1 overflow-hidden px-4 pt-1 pb-5">
               <PalettePicker />
             </div>
           </div>

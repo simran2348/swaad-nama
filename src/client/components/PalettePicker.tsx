@@ -17,7 +17,7 @@ const choosePalette = (palette: Palette) => {
 export const PalettePicker = () => {
   const current = useTheme();
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-3 gap-2 [@media(max-height:460px)]:grid-cols-4">
       {PALETTES.map((p) => {
         const active = p === current;
         return (
@@ -32,7 +32,10 @@ export const PalettePicker = () => {
             }`}
           >
             <span className="relative block">
-              <ThemeSurface palette={p} className="relative h-10 rounded-lg" />
+              <ThemeSurface
+                palette={p}
+                className="relative h-10 rounded-lg [@media(max-height:460px)]:h-7"
+              />
               {active && (
                 <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-cta text-[11px] font-bold text-cta-ink shadow-md">
                   <CheckIcon className="h-3 w-3" />
