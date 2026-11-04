@@ -53,16 +53,47 @@ found, they can **pick it on a map**: search for a nearby area or landmark
 to jump there, then move the map until the pin is on the place. Locations
 are limited to places in India.
 
-The app uses these outside services:
+The outside services behind this are listed under
+[Fetch Domains](#fetch-domains).
 
-- **Ola Maps** (api.olamaps.io) to find places and look up the address of
-  a spot.
-- **Photon** (photon.komoot.io), an OpenStreetMap search, to find the
-  subreddit's map area, and as a backup for place search.
-- **CARTO** (basemaps.cartocdn.com) for the map images.
+## Fetch Domains
 
-Only the place name or the spot's coordinates are sent to these services,
-never Reddit usernames.
+The app's server calls three outside domains, all listed in `devvit.json`.
+Every call is made by the server, never from the user's device. Only search
+text or map coordinates are sent; Reddit usernames and other personal
+details never are.
+
+### api.olamaps.io (Ola Maps)
+
+Ola Maps is a maps and places service built for India by Ola. It is the
+main place search, because it knows local Indian restaurants, street-food
+stalls and cafés that OpenStreetMap is often missing.
+
+- `GET /places/v1/autocomplete`: finds places as a member types a place
+  name while rating. Sends the typed text and the subreddit's map area;
+  returns place names, addresses and coordinates.
+- `GET /places/v1/reverse-geocode`: when a member picks a spot on the map
+  instead, looks up its address and the eatery at that spot. Sends the
+  spot's coordinates.
+
+Results are cached in Redis (3 days for searches, 7 days for spots), so
+repeat lookups don't call Ola again. The API key is stored as a Devvit
+secret setting, not in the code.
+
+### photon.komoot.io (Photon, OpenStreetMap)
+
+A free OpenStreetMap search.
+
+- `GET /api/`: finds the subreddit's **Map area** setting (for example
+  "Pune") so the map opens there and searches prefer it. It is also the
+  backup place search if Ola Maps is unavailable.
+- `GET /reverse`: the backup address lookup for a spot picked on the map.
+
+### basemaps.cartocdn.com (CARTO)
+
+- `GET /{style}/{z}/{x}/{y}.png`: map images (tiles) for the Map tab and
+  the location picker, in light or dark style to match the theme. The
+  server fetches each tile and passes it to the app, cached for a week.
 
 ## Admin
 
