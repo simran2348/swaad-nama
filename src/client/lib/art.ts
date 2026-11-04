@@ -27,6 +27,9 @@ export const EMPTY_JOURNAL_IMAGE = {
   height: 320,
 };
 
+/** Journal → Travel: the trail starts at home, a house among trees. */
+export const TRAIL_HOME_IMAGE = { src: '/home.png', width: 320, height: 288 };
+
 /** Ranking hero (Ratings → a category): the podium, with its pixel size. */
 export const PODIUM_IMAGE = { src: '/podium.png', width: 781, height: 319 };
 
@@ -66,6 +69,28 @@ export const useImageLoaded = (src: string | null) => {
   }, [src]);
   return src !== null && loadedSrc === src;
 };
+
+/** Max wait for pictures before showing a screen anyway (slow networks). */
+const PRELOAD_TIMEOUT_MS = 8000;
+
+/**
+ * Resolves once every image in `srcs` has downloaded (or failed to), or
+ * after a few seconds at most. Never rejects.
+ */
+export const preloadImages = (srcs: readonly string[]) =>
+  Promise.race([
+    Promise.all(
+      [...new Set(srcs)].filter(Boolean).map(
+        (src) =>
+          new Promise<void>((resolve) => {
+            const img = new Image();
+            img.onload = img.onerror = () => resolve();
+            img.src = src;
+          })
+      )
+    ).then(() => undefined),
+    new Promise<void>((resolve) => setTimeout(resolve, PRELOAD_TIMEOUT_MS)),
+  ]);
 
 /**
  * True once every image in `srcs` has downloaded (or failed to). Pass a

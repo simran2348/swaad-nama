@@ -1,4 +1,5 @@
 import type { PlaceLocation } from '../../shared/api';
+import { suggestFoods } from '../../shared/food';
 import { BudgetInput } from './BudgetInput';
 import { PlacePicker } from './PlacePicker';
 import { RatingInput } from './RatingInput';
@@ -29,14 +30,14 @@ export const ReviewFields = ({
 }: {
   draft: ReviewDraft;
   onChange: (patch: Partial<ReviewDraft>) => void;
-  /** Existing food categories, offered as quick picks. */
+  /** Existing food categories (most-rated first), offered as quick picks. */
   foods: string[];
   /** Hide the title (it comes from the post when rating your own posts). */
   hideTitle?: boolean;
 }) => {
-  const suggestions = foods
-    .filter((f) => f.toLowerCase() !== draft.food.trim().toLowerCase())
-    .slice(0, 8);
+  // Nothing typed: the 5 most-rated. Typing: the 5 closest matches.
+  const typing = draft.food.trim() !== '';
+  const suggestions = suggestFoods(foods, draft.food);
 
   return (
     <>
@@ -64,7 +65,10 @@ export const ReviewFields = ({
           onChange={(e) => onChange({ food: e.target.value })}
         />
         {suggestions.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-normal text-muted">
+              {typing ? 'Suggestions:' : 'Popular:'}
+            </span>
             {suggestions.map((food) => (
               <button
                 key={food}

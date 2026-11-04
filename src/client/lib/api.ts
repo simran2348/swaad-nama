@@ -1,6 +1,8 @@
 import type {
   AdminDeletePostsResponse,
   AdminResetRatingsResponse,
+  AdminJournalSection,
+  AdminResetJournalResponse,
   AdminStatsResponse,
   FoodReview,
   PostDetailResponse,
@@ -11,6 +13,10 @@ import type {
   ErrorResponse,
   FavouritesResponse,
   JournalResponse,
+  JournalEntriesResponse,
+  SaveJournalRequest,
+  SaveJournalResponse,
+  FansResponse,
   SaveFavouriteRequest,
   SaveFavouriteUserRequest,
   ImportPostResponse,
@@ -97,6 +103,9 @@ export const saveFavourite = (body: SaveFavouriteRequest) =>
     body: JSON.stringify(body),
   });
 
+/** People who added you to favourites; also clears the "new fans" dot. */
+export const fetchFans = () => request<FansResponse>('/api/fans');
+
 export const fetchJournal = () => request<JournalResponse>('/api/journal');
 
 export const saveFavouriteUser = (body: SaveFavouriteUserRequest) =>
@@ -181,4 +190,22 @@ export const adminResetRatings = (username: string) =>
   request<AdminResetRatingsResponse>('/api/admin/reset-ratings', {
     method: 'POST',
     body: JSON.stringify({ username }),
+  });
+
+export const adminResetJournal = (
+  username: string,
+  section: AdminJournalSection
+) =>
+  request<AdminResetJournalResponse>('/api/admin/reset-journal', {
+    method: 'POST',
+    body: JSON.stringify({ username, section }),
+  });
+
+export const fetchJournalEntries = () =>
+  request<JournalEntriesResponse>('/api/journal/entries');
+
+export const saveJournal = (body: SaveJournalRequest) =>
+  request<SaveJournalResponse>('/api/journal/entries', {
+    method: 'POST',
+    body: JSON.stringify(body),
   });

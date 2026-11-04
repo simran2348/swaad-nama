@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { InitResponse } from '../../shared/api';
+import type { InitResponse, JournalKind } from '../../shared/api';
 import { SectionHeading } from './Brand';
 import { PostPicker } from './PostPicker';
 import { TrendingRow } from './TrendingRow';
@@ -13,10 +13,13 @@ export const MyList = ({
   data,
   error,
   onAdded,
+  onJournaled,
 }: {
   data: InitResponse | null;
   error: string | null;
   onAdded: () => void;
+  /** A post was added to your journal, in this section. */
+  onJournaled: (section: JournalKind) => void;
 }) => {
   const [trendingCount, setTrendingCount] = useState<number | null>();
   const [postsEmpty, setPostsEmpty] = useState(false);
@@ -37,6 +40,7 @@ export const MyList = ({
         <PostPicker
           foods={data?.foods ?? []}
           onAdded={onAdded}
+          onJournaled={onJournaled}
           onEmptyChange={setPostsEmpty}
         />
       </main>

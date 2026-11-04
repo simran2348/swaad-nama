@@ -1,10 +1,10 @@
-import { showToast } from '@devvit/web/client';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { MyPostsResponse } from '../../shared/api';
+import type { JournalKind, MyPostsResponse } from '../../shared/api';
 import { tierFor } from '../../shared/food';
 import { fetchMyPosts } from '../lib/api';
 import { ImportWizard } from './ImportWizard';
+import { JournalWizard } from './JournalWizard';
 import { ratingJourney, track } from '../lib/track';
 import { EMPTY_LIST_IMAGE, useImageLoaded } from '../lib/art';
 import { formatDate } from '../lib/format';
@@ -71,11 +71,14 @@ const SelectToggle = ({
 export const PostPicker = ({
   foods,
   onAdded,
+  onJournaled,
   username,
   onEmptyChange,
 }: {
   foods: string[];
   onAdded: () => void;
+  /** A post was added to your journal, in this section. */
+  onJournaled?: (section: JournalKind) => void;
   /** View this user's posts instead of your own. */
   username?: string;
   /** Whether the list loaded with no posts in it. */
@@ -93,6 +96,8 @@ export const PostPicker = ({
   // Posts open in the rating form: your picks, or one from its own button.
   const [importIds, setImportIds] = useState<string[] | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
+  // The post being added to your journal.
+  const [journalId, setJournalId] = useState<string | null>(null);
   // Preloaded so the empty state never shows before its picture.
   const imageReady = useImageLoaded(EMPTY_LIST_IMAGE.src);
   const empty = !loading && !error && posts.length === 0;
@@ -228,7 +233,7 @@ export const PostPicker = ({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          showToast('Journal is coming soon!');
+                          setJournalId(post.postId);
                         }}
                         aria-label={`Add "${post.title}" to your journal`}
                         title="Journal"
@@ -375,6 +380,17 @@ export const PostPicker = ({
           </div>,
           navSlot
         )}
+
+      {journalId && (
+        <JournalWizard
+          postId={journalId}
+          onCancel={() => setJournalId(null)}
+          onDone={(section) => {
+            setJournalId(null);
+            onJournaled?.(section);
+          }}
+        />
+      )}
 
       {importIds && (
         <ImportWizard

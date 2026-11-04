@@ -29,6 +29,8 @@ const keys = {
   favouriteUsers: (username: string) => `user:${username}:favourites:users`,
   /** People who have favourited a user (the other side of the above). */
   fans: (username: string) => `user:${username}:fans`,
+  /** The fans a user saw when they last opened their fans list. */
+  fansSeen: (username: string) => `user:${username}:fans:seen`,
 };
 
 /** A new rating: one more for its author, who's now the latest rater. */
@@ -544,5 +546,38 @@ export const setFavouriteUser = async (
   return true;
 };
 
-/** How many people have added this user to their favourites. */
-export const countFans = (username: string) => redis.zCard(keys.fans(username));
+/** Most fans listed at once. */
+const MAX_FANS_SHOWN = 200;
+
+/**
+ * How many people have added this user to their favourites, and whether
+ * any of them weren't in the list the last time they opened it.
+ */
+export const getFanSummary = async (username: string) => {
+  const [fans, seen] = await Promise.all([
+    redis.zRange(keys.fans(username), 0, -1, { by: 'rank' }),
+    redis.zRange(keys.fansSeen(username), 0, -1, { by: 'rank' }),
+  ]);
+  const seenNames = new Set(seen.map(({ member }) => member));
+  return {
+    count: fans.length,
+    hasNew: fans.some(({ member }) => !seenNames.has(member)),
+  };
+};
+
+/**
+ * People who added this user to their favourites, newest first. Opening
+ * the list marks everyone in it as seen (clearing the "new fans" dot).
+ */
+export const getFansAndMarkSeen = async (username: string) => {
+  const fans = await redis.zRange(keys.fans(username), 0, -1, {
+    by: 'rank',
+    reverse: true,
+  });
+  const seenKey = keys.fansSeen(username);
+  await redis.del(seenKey);
+  if (fans.length > 0) await redis.zAdd(seenKey, ...fans);
+  return fans
+    .slice(0, MAX_FANS_SHOWN)
+    .map(({ member, score }) => ({ username: member, at: score }));
+};

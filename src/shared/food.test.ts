@@ -7,6 +7,7 @@ import {
   normalizeName,
   rankRatings,
   ratingToStars,
+  suggestFoods,
   tierFor,
 } from './food.ts';
 import { cleanPostBody } from './text.ts';
@@ -74,4 +75,33 @@ test('rankRatings gives equal ratings the same place', () => {
   assert.deepEqual(rankRatings([9, 9, 8.5, 8, 8, 7]), [1, 1, 2, 3, 3, 4]);
   assert.deepEqual(rankRatings([7.5]), [1]);
   assert.deepEqual(rankRatings([]), []);
+});
+
+test('suggestFoods ranks the closest matches, up to 5', () => {
+  const foods = [
+    'Biryani',
+    'Pizza',
+    'Misal Pav',
+    'Vada Pav',
+    'Pav Bhaji',
+    'Chole Bhature',
+    'Paneer Tikka',
+    'Butter Chicken',
+  ];
+  // Nothing typed: the first five (most-rated).
+  assert.deepEqual(suggestFoods(foods, ''), foods.slice(0, 5));
+  // Starts with it, then a word starts with it.
+  assert.deepEqual(suggestFoods(foods, 'pa'), [
+    'Pav Bhaji',
+    'Paneer Tikka',
+    'Misal Pav',
+    'Vada Pav',
+  ]);
+  // Typos still find it.
+  assert.deepEqual(suggestFoods(foods, 'biriyani'), ['Biryani']);
+  assert.deepEqual(suggestFoods(foods, 'chole bhatu'), ['Chole Bhature']);
+  // The exact category already typed isn't suggested again.
+  assert.deepEqual(suggestFoods(foods, 'Pizza'), []);
+  // No match at all.
+  assert.deepEqual(suggestFoods(foods, 'sushi'), []);
 });

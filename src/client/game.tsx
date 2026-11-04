@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { InitResponse } from '../shared/api';
+import type { InitResponse, JournalKind } from '../shared/api';
 import { FoodBackground } from './components/FoodBackground';
 import {
   BookIcon,
@@ -92,6 +92,8 @@ export const App = () => {
   // Bumped when Ratings is tapped again, to go back to its main screen.
   const [ratingsReset, setRatingsReset] = useState(0);
   const [data, setData] = useState<InitResponse | null>(null);
+  // The Journal section to open on (after adding a post to it).
+  const [journalSection, setJournalSection] = useState<JournalKind>('travel');
   const [error, setError] = useState<string | null>(null);
   const modeSynced = useRef(false);
   const [navSlot, setNavSlot] = useState<HTMLElement | null>(null);
@@ -150,6 +152,10 @@ export const App = () => {
                 // Show the new entries under their food categories.
                 setTab('ratings');
               }}
+              onJournaled={(section) => {
+                setJournalSection(section);
+                setTab('journal');
+              }}
             />
           ) : tab === 'ratings' ? (
             <Ratings
@@ -158,7 +164,7 @@ export const App = () => {
               username={data?.username ?? null}
             />
           ) : tab === 'journal' ? (
-            <Journal />
+            <Journal initialSection={journalSection} />
           ) : tab === 'map' ? (
             <MapView data={data} />
           ) : tab === 'admin' && isAdmin(data?.username) ? (

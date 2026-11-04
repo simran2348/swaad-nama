@@ -141,6 +141,14 @@ export type AdminResetRatingsResponse = {
   removed: number;
 };
 
+/** Which journal entries an admin reset removes. */
+export type AdminJournalSection = 'travel' | 'home' | 'recipe' | 'all';
+
+export type AdminResetJournalResponse = {
+  username: string;
+  removed: number;
+};
+
 /** An existing Reddit post, pre-filled into the add form. */
 export type ImportPostResponse = {
   postId: string;
@@ -203,6 +211,72 @@ export type JournalResponse = {
   categories: number;
   /** How many people have added you to their favourites. */
   fans: number;
+  /** Someone added you since you last opened your fans list. */
+  newFans: boolean;
+};
+
+/** Journal sections: food from a trip, home-cooked food, or a recipe. */
+export type JournalKind = 'travel' | 'home' | 'recipe';
+
+/** One photo in a journal entry, with the dish in it. */
+export type JournalPhoto = {
+  /** The post photo's URL ('' when the post had none). */
+  image: string;
+  dish: string;
+  /** How it's made ('' when not given). */
+  recipe: string;
+};
+
+/**
+ * A journal entry made from one of your posts. A trip keeps all the post's
+ * photos; home-made food and recipes have one photo each.
+ */
+export type JournalEntry = {
+  id: string;
+  kind: JournalKind;
+  postId: string;
+  /** Where the trip was (trips only, '' otherwise). */
+  place: string;
+  /** Anything else you wrote. */
+  body: string;
+  photos: JournalPhoto[];
+  /** When it was added (ms). */
+  at: number;
+};
+
+/** Your journal, newest first. */
+export type JournalEntriesResponse = {
+  entries: JournalEntry[];
+};
+
+/**
+ * Adds a post to your journal. For a trip, every photo is one entry with a
+ * place; otherwise each photo is saved on its own, and a home-made photo
+ * with a recipe goes in Recipes.
+ */
+export type SaveJournalRequest = {
+  postId: string;
+  kind: JournalKind;
+  place: string;
+  body: string;
+  photos: JournalPhoto[];
+};
+
+export type SaveJournalResponse = {
+  entries: JournalEntry[];
+};
+
+/** Someone who added you to their favourites. */
+export type Fan = {
+  username: string;
+  avatarUrl: string | null;
+  /** When they added you (ms). */
+  at: number;
+};
+
+/** People who added you to their favourites, newest first. */
+export type FansResponse = {
+  fans: Fan[];
 };
 
 /** Adds someone to your favourite people (or removes them). */

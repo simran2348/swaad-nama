@@ -5,6 +5,12 @@ import type {
   CreateReviewRequest,
   FavouritesResponse,
   JournalResponse,
+  AdminJournalSection,
+  AdminResetJournalResponse,
+  JournalEntriesResponse,
+  SaveJournalRequest,
+  SaveJournalResponse,
+  FansResponse,
   SaveFavouriteRequest,
   SaveFavouriteUserRequest,
   CreateReviewResponse,
@@ -61,6 +67,13 @@ import {
   PlaceError,
 } from '../core/external';
 import { postUrl } from '../core/post';
+import {
+  getJournalEntries,
+  hasJournalPost,
+  removeJournalEntries,
+  saveJournalEntries,
+} from '../core/journal';
+import { planJournalEntries } from '../../shared/journal';
 import { getAvatarUrl } from '../core/avatars';
 import { backfillRaters } from '../core/raterBackfill';
 import { deletePosts, resetRatings } from '../core/admin';
@@ -84,7 +97,8 @@ import {
   getFavouriteUsers,
   setFavourite,
   setFavouriteUser,
-  countFans,
+  getFanSummary,
+  getFansAndMarkSeen,
   indexUserReviews,
   indexRater,
   getRecentRaters,
@@ -124,6 +138,9 @@ const resolveUsername = async (input: string): Promise<string | null> => {
   const user = await reddit.getUserByUsername(name).catch(() => undefined);
   return user?.username ?? null;
 };
+
+/** How many food category names the app gets for the dish suggestions. */
+const FOOD_SUGGESTION_POOL = 200;
 
 export const api = new Hono();
 
@@ -185,7 +202,8 @@ api.get('/init', async (c) => {
     }
     const [myList, foods, mode] = await Promise.all([
       username ? getUserReviews(username) : Promise.resolve([]),
-      getTopFoods(),
+      // Plenty, so typing a dish can match less-rated ones too.
+      getTopFoods(FOOD_SUGGESTION_POOL),
       username ? getUserMode(username) : Promise.resolve(null),
     ]);
     // Adds the user's older ratings to the community index (once).
@@ -457,23 +475,47 @@ api.get('/journal', async (c) => {
       ratings: 0,
       categories: 0,
       fans: 0,
+      newFans: false,
     });
   }
   try {
     const [avatarUrl, reviews, fans] = await Promise.all([
       reddit.getSnoovatarUrl(username).catch(() => undefined),
       getUserReviews(username),
-      countFans(username),
+      getFanSummary(username),
     ]);
     return c.json<JournalResponse>({
       username,
       avatarUrl: avatarUrl ?? null,
       ratings: reviews.length,
       categories: getUserCategories(reviews).length,
-      fans,
+      fans: fans.count,
+      newFans: fans.hasNew,
     });
   } catch (error) {
     return failure(c, error, 'journal');
+  }
+});
+
+/**
+ * People who added you to their favourites, newest first. Opening it marks
+ * them all as seen, so Journal's red dot only returns for someone new.
+ */
+api.get('/fans', async (c) => {
+  const username = await reddit.getCurrentUsername();
+  if (!username) return c.json<FansResponse>({ fans: [] });
+  try {
+    const fans = await getFansAndMarkSeen(username);
+    return c.json<FansResponse>({
+      fans: await Promise.all(
+        fans.map(async (fan) => ({
+          ...fan,
+          avatarUrl: await getAvatarUrl(fan.username),
+        }))
+      ),
+    });
+  } catch (error) {
+    return failure(c, error, 'fans');
   }
 });
 
@@ -762,6 +804,54 @@ const failure = (c: Context, error: unknown, label: string) => {
   );
 };
 
+/** Your journal entries, newest first. */
+api.get('/journal/entries', async (c) => {
+  const username = await reddit.getCurrentUsername();
+  if (!username) return c.json<JournalEntriesResponse>({ entries: [] });
+  try {
+    return c.json<JournalEntriesResponse>({
+      entries: await getJournalEntries(username),
+    });
+  } catch (error) {
+    return failure(c, error, 'journal entries');
+  }
+});
+
+/** Adds one of your posts to your journal (from My List). */
+api.post('/journal/entries', async (c) => {
+  const username = await reddit.getCurrentUsername();
+  if (!username) return unauthorized(c);
+  const body = await c.req.json<Partial<SaveJournalRequest>>();
+  if (!body.postId) {
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Pick a post to add' },
+      400
+    );
+  }
+  try {
+    // Only your own posts, with their own photos.
+    const source = await importPost(body.postId.replace(/^t3_/, ''), username);
+    const plan = planJournalEntries(body, source.postId, source.images);
+    if (!plan.ok) {
+      return c.json<ErrorResponse>(
+        { status: 'error', message: plan.message },
+        400
+      );
+    }
+    if (await hasJournalPost(username, source.postId)) {
+      return c.json<ErrorResponse>(
+        { status: 'error', message: 'This post is already in your journal.' },
+        409
+      );
+    }
+    return c.json<SaveJournalResponse>({
+      entries: await saveJournalEntries(username, plan.entries),
+    });
+  } catch (error) {
+    return failure(c, error, 'save journal');
+  }
+});
+
 /** Rate one of your existing posts (from My List). */
 api.post('/reviews', async (c) => {
   const username = await reddit.getCurrentUsername();
@@ -952,5 +1042,46 @@ api.post('/admin/reset-ratings', async (c) => {
     return c.json<AdminResetRatingsResponse>(await resetRatings(username));
   } catch (error) {
     return failure(c, error, 'admin reset ratings');
+  }
+});
+
+const isAdminJournalSection = (value: unknown): value is AdminJournalSection =>
+  value === 'travel' ||
+  value === 'home' ||
+  value === 'recipe' ||
+  value === 'all';
+
+/** Admin only: removes a user's journal entries in one section, or all. */
+api.post('/admin/reset-journal', async (c) => {
+  if (!isAdmin(await reddit.getCurrentUsername())) {
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Not allowed' },
+      403
+    );
+  }
+  const { username: input, section } = await c.req.json<{
+    username?: string;
+    section?: string;
+  }>();
+  if (!isAdminJournalSection(section)) {
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Pick what to remove' },
+      400
+    );
+  }
+  try {
+    const username = await resolveUsername(input ?? '');
+    if (!username) {
+      return c.json<ErrorResponse>(
+        { status: 'error', message: `u/${input ?? ''} not found` },
+        404
+      );
+    }
+    return c.json<AdminResetJournalResponse>({
+      username,
+      removed: await removeJournalEntries(username, section),
+    });
+  } catch (error) {
+    return failure(c, error, 'admin reset journal');
   }
 });

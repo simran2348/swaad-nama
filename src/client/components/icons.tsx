@@ -150,6 +150,15 @@ export const PinIcon = ({ className = '' }: IconProps) => (
   </svg>
 );
 
+/** House, for home-made food. */
+export const HomeIcon = ({ className = '' }: IconProps) => (
+  <svg {...strokeProps} aria-hidden className={className}>
+    <path d="M3.5 10.5 12 3.5l8.5 7" />
+    <path d="M5.5 9v11h13V9" />
+    <path d="M10 20v-5.5h4V20" />
+  </svg>
+);
+
 /** Calendar, for dates. */
 export const CalendarIcon = ({ className = '' }: IconProps) => (
   <svg {...strokeProps} aria-hidden className={className}>

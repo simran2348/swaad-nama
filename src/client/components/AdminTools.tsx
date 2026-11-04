@@ -1,8 +1,12 @@
 import { showToast } from '@devvit/web/client';
 import { useState, type ComponentType, type ReactNode } from 'react';
-import type { AdminDeletePostsResponse } from '../../shared/api';
+import type {
+  AdminDeletePostsResponse,
+  AdminJournalSection,
+} from '../../shared/api';
 import {
   adminDeletePosts,
+  adminResetJournal,
   adminResetRatings,
   adminResetStats,
 } from '../lib/api';
@@ -72,6 +76,97 @@ const DangerButton = ({
       {busy && <Spinner className="h-4 w-4" />}
       {armed ? 'Tap to confirm' : children}
     </button>
+  );
+};
+
+const JOURNAL_SECTIONS: { id: AdminJournalSection; label: string }[] = [
+  { id: 'travel', label: 'Travel' },
+  { id: 'home', label: 'Home-made' },
+  { id: 'recipe', label: 'Recipes' },
+  { id: 'all', label: 'All journal' },
+];
+
+/** Removes a user's journal entries: one section, or the whole journal. */
+const ResetJournal = () => {
+  const [username, setUsername] = useState('');
+  const [section, setSection] = useState<AdminJournalSection>('travel');
+  const [busy, setBusy] = useState(false);
+  const label =
+    JOURNAL_SECTIONS.find((s) => s.id === section)?.label ?? 'journal';
+
+  const reset = async () => {
+    setBusy(true);
+    try {
+      const res = await adminResetJournal(
+        username.trim().replace(/^\/?u\//i, ''),
+        section
+      );
+      showToast(
+        `Removed ${res.removed} journal ${res.removed === 1 ? 'entry' : 'entries'} for u/${res.username}`
+      );
+      setUsername('');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Reset failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label
+        htmlFor="admin-reset-journal"
+        className="px-1 text-base font-extrabold text-ink"
+      >
+        Reset a user's journal
+      </label>
+      <p className="px-1 text-xs leading-relaxed text-muted">
+        Removes their trips, home-made food or recipes, or the whole journal.
+        Their Reddit posts and ratings aren't touched.
+      </p>
+      <input
+        id="admin-reset-journal"
+        className={inputClass}
+        value={username}
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        placeholder="username"
+        onChange={(e) => setUsername(e.target.value)}
+      />
+      <div
+        role="radiogroup"
+        aria-label="What to remove"
+        className="flex flex-wrap gap-1.5"
+      >
+        {JOURNAL_SECTIONS.map((s) => {
+          const active = s.id === section;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => setSection(s.id)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-bold cursor-pointer transition-colors ${
+                active
+                  ? 'border-rose-500 bg-rose-500/10 text-rose-600 dark:text-rose-300'
+                  : 'border-line bg-soft text-soft-ink hover:brightness-95'
+              }`}
+            >
+              {s.label}
+            </button>
+          );
+        })}
+      </div>
+      <DangerButton
+        disabled={!username.trim()}
+        busy={busy}
+        onConfirm={() => void reset()}
+      >
+        {section === 'all' ? 'Remove whole journal' : `Remove ${label}`}
+      </DangerButton>
+    </div>
   );
 };
 
@@ -201,6 +296,8 @@ export const AdminTools = ({
           Reset ratings
         </DangerButton>
       </div>
+
+      <ResetJournal />
 
       <div className="flex flex-col gap-2">
         <h3 className="px-1 text-base font-extrabold text-ink">

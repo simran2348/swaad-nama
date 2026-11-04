@@ -112,3 +112,66 @@ export const cleanVibes = (value: unknown): string[] => {
   }
   return vibes;
 };
+
+/** Edits (insert, delete, swap a letter) to turn `a` into `b`. */
+const editDistance = (a: string, b: string): number => {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      row[j] = Math.min(
+        (prev[j] ?? 0) + 1,
+        (row[j - 1] ?? 0) + 1,
+        (prev[j - 1] ?? 0) + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+    prev = row;
+  }
+  return prev[b.length] ?? 0;
+};
+
+/**
+ * How closely a food name matches what's typed, lower is closer; null for
+ * no match. Starts with it > a word starts with it > contains it > the
+ * letters appear in order > a near miss (a typo or two).
+ */
+const matchScore = (query: string, name: string): number | null => {
+  if (name.startsWith(query)) return 0;
+  if (name.split(' ').some((word) => word.startsWith(query))) return 1;
+  if (name.includes(query)) return 2;
+  let at = 0;
+  for (const char of name) if (char === query[at]) at++;
+  if (at === query.length && query.length > 2) return 3;
+  // Typos: compare with the start of the name (or a word) of the same length.
+  const allowed = query.length < 4 ? 1 : Math.floor(query.length / 3);
+  const misses = [name, ...name.split(' ')].map((part) =>
+    editDistance(query, part.slice(0, query.length))
+  );
+  const best = Math.min(...misses);
+  return query.length > 2 && best <= allowed ? 4 + best : null;
+};
+
+/**
+ * Food categories to suggest for what's typed: the closest matches first
+ * (ties keep the list's order, i.e. most-rated first). Nothing typed: the
+ * first `limit`. The exact category already typed is left out.
+ */
+export const suggestFoods = (
+  foods: string[],
+  typed: string,
+  limit = 5
+): string[] => {
+  const query = normalizeName(typed);
+  const others = foods.filter((food) => normalizeName(food) !== query);
+  if (!query) return others.slice(0, limit);
+  return others
+    .map((food, index) => ({
+      food,
+      index,
+      score: matchScore(query, normalizeName(food)),
+    }))
+    .filter((m): m is typeof m & { score: number } => m.score !== null)
+    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .slice(0, limit)
+    .map((m) => m.food);
+};
