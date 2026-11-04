@@ -4,6 +4,7 @@ import type {
   CategoriesResponse,
   CreateReviewRequest,
   FavouritesResponse,
+  JournalResponse,
   SaveFavouriteRequest,
   SaveFavouriteUserRequest,
   CreateReviewResponse,
@@ -83,6 +84,7 @@ import {
   getFavouriteUsers,
   setFavourite,
   setFavouriteUser,
+  countFans,
   indexUserReviews,
   indexRater,
   getRecentRaters,
@@ -442,6 +444,36 @@ api.post('/favourites', async (c) => {
     return c.json<{ status: 'ok' }>({ status: 'ok' });
   } catch (error) {
     return failure(c, error, 'save favourite');
+  }
+});
+
+/** Your profile for the top of Journal: avatar and three counts. */
+api.get('/journal', async (c) => {
+  const username = await reddit.getCurrentUsername();
+  if (!username) {
+    return c.json<JournalResponse>({
+      username: null,
+      avatarUrl: null,
+      ratings: 0,
+      categories: 0,
+      fans: 0,
+    });
+  }
+  try {
+    const [avatarUrl, reviews, fans] = await Promise.all([
+      reddit.getSnoovatarUrl(username).catch(() => undefined),
+      getUserReviews(username),
+      countFans(username),
+    ]);
+    return c.json<JournalResponse>({
+      username,
+      avatarUrl: avatarUrl ?? null,
+      ratings: reviews.length,
+      categories: getUserCategories(reviews).length,
+      fans,
+    });
+  } catch (error) {
+    return failure(c, error, 'journal');
   }
 });
 

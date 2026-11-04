@@ -27,6 +27,8 @@ const keys = {
   favourites: (username: string) => `user:${username}:favourites`,
   /** People a user has favourited, scored by when they were added. */
   favouriteUsers: (username: string) => `user:${username}:favourites:users`,
+  /** People who have favourited a user (the other side of the above). */
+  fans: (username: string) => `user:${username}:fans`,
 };
 
 /** A new rating: one more for its author, who's now the latest rater. */
@@ -521,13 +523,26 @@ export const setFavouriteUser = async (
   const key = keys.favouriteUsers(username);
   if (!favourite) {
     await redis.zRem(key, [other]);
+    await redis.zRem(keys.fans(other), [username]);
     return true;
   }
   if ((await redis.zScore(keys.raterCounts(), other)) === undefined) {
     return false;
   }
-  await redis.zAdd(key, { member: other, score: Date.now() });
+  const now = Date.now();
+  await redis.zAdd(key, { member: other, score: now });
+  await redis.zAdd(keys.fans(other), { member: username, score: now });
+  // Past the cap, the oldest ones go (and stop counting as a fan of them).
   const extra = (await redis.zCard(key)) - MAX_FAVOURITES;
-  if (extra > 0) await redis.zRemRangeByRank(key, 0, extra - 1);
+  if (extra > 0) {
+    const dropped = await redis.zRange(key, 0, extra - 1, { by: 'rank' });
+    await redis.zRemRangeByRank(key, 0, extra - 1);
+    await Promise.all(
+      dropped.map(({ member }) => redis.zRem(keys.fans(member), [username]))
+    );
+  }
   return true;
 };
+
+/** How many people have added this user to their favourites. */
+export const countFans = (username: string) => redis.zCard(keys.fans(username));

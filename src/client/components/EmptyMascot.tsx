@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 
 /**
- * Centred empty state: an illustration, a heading and a message.
+ * Centred empty state: an illustration, a heading and (optionally) a message.
  * The illustration is hidden if it fails to load.
  */
 export const EmptyMascot = ({
@@ -21,7 +21,7 @@ export const EmptyMascot = ({
   title: string;
   /** A smaller picture, for use under a section heading. */
   small?: boolean;
-  children: ReactNode;
+  children?: ReactNode;
 }) => {
   const [failed, setFailed] = useState(false);
   return (
@@ -41,7 +41,7 @@ export const EmptyMascot = ({
         />
       )}
       <h3 className="mt-2 text-lg font-extrabold text-ink">{title}</h3>
-      <p className="max-w-xs text-sm text-muted">{children}</p>
+      {children && <p className="max-w-xs text-sm text-muted">{children}</p>}
     </div>
   );
 };

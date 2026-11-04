@@ -20,6 +20,13 @@ export const EMPTY_RATINGS_IMAGE = {
   height: 288,
 };
 
+/** Empty state for Journal: a sad carrot with an empty diary. */
+export const EMPTY_JOURNAL_IMAGE = {
+  src: '/empty-diary.png',
+  width: 308,
+  height: 320,
+};
+
 /** Ranking hero (Ratings → a category): the podium, with its pixel size. */
 export const PODIUM_IMAGE = { src: '/podium.png', width: 781, height: 319 };
 

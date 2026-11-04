@@ -10,6 +10,7 @@ import type {
   CreateReviewResponse,
   ErrorResponse,
   FavouritesResponse,
+  JournalResponse,
   SaveFavouriteRequest,
   SaveFavouriteUserRequest,
   ImportPostResponse,
@@ -95,6 +96,8 @@ export const saveFavourite = (body: SaveFavouriteRequest) =>
     method: 'POST',
     body: JSON.stringify(body),
   });
+
+export const fetchJournal = () => request<JournalResponse>('/api/journal');
 
 export const saveFavouriteUser = (body: SaveFavouriteUserRequest) =>
   request<{ status: 'ok' }>('/api/favourites/users', {

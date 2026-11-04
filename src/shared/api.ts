@@ -193,6 +193,18 @@ export type SaveFavouriteRequest = {
   favourite: boolean;
 };
 
+/** Your profile at the top of Journal. */
+export type JournalResponse = {
+  username: string | null;
+  avatarUrl: string | null;
+  /** How many ratings you've added. */
+  ratings: number;
+  /** How many food categories you've rated. */
+  categories: number;
+  /** How many people have added you to their favourites. */
+  fans: number;
+};
+
 /** Adds someone to your favourite people (or removes them). */
 export type SaveFavouriteUserRequest = {
   username: string;
