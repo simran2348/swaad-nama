@@ -30,7 +30,7 @@ const parseEntry = (value: string | undefined): JournalEntry | null => {
     return null;
   }
   if (typeof data !== 'object' || data === null) return null;
-  const { id, kind, postId, place, body, photos, at } = {
+  const { id, kind, postId, place, body, photos, at, commentUrl } = {
     id: '',
     kind: '',
     postId: '',
@@ -38,6 +38,7 @@ const parseEntry = (value: string | undefined): JournalEntry | null => {
     body: '',
     photos: [],
     at: 0,
+    commentUrl: '',
     ...data,
   };
   if (!isJournalKind(kind) || typeof id !== 'string' || !id) return null;
@@ -51,6 +52,7 @@ const parseEntry = (value: string | undefined): JournalEntry | null => {
       ? photos.flatMap((p: unknown) => parsePhoto(p) ?? [])
       : [],
     at: typeof at === 'number' ? at : 0,
+    ...(text(commentUrl) ? { commentUrl: text(commentUrl) } : {}),
   };
 };
 
@@ -77,7 +79,8 @@ export const hasJournalPost = async (username: string, postId: string) =>
 /** Saves entries to your journal (all at the same time, in order). */
 export const saveJournalEntries = async (
   username: string,
-  planned: readonly PlannedEntry[]
+  planned: readonly PlannedEntry[],
+  commentUrl: string
 ): Promise<JournalEntry[]> => {
   const now = Date.now();
   // Later entries a hair newer, so newest-first keeps the post's order
@@ -86,6 +89,7 @@ export const saveJournalEntries = async (
     ...entry,
     id: `${now.toString(36)}${i}${Math.random().toString(36).slice(2, 7)}`,
     at: now + i,
+    commentUrl,
   }));
   await redis.hSet(
     keys.entries(username),

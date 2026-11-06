@@ -55,6 +55,8 @@ import {
 import { TEAM_USERNAMES } from '../../shared/team';
 import { isAppMode, isPaletteId } from '../../shared/theme';
 import { cleanVibes, isValidBudget, isValidRating } from '../../shared/food';
+import { journalComment, ratingComment } from '../../shared/comments';
+import { commentAsUser } from '../core/userComments';
 import {
   fetchTile,
   getMapArea,
@@ -95,12 +97,14 @@ import {
   searchFoods,
   getFavouriteFoods,
   getFavouriteUsers,
+  countFavouriteUsers,
   setFavourite,
   setFavouriteUser,
   getFanSummary,
   getFansAndMarkSeen,
   indexUserReviews,
   indexRater,
+  indexFans,
   getRecentRaters,
   getTopRaters,
   countRatings,
@@ -213,6 +217,10 @@ api.get('/init', async (c) => {
       );
       await indexRater(username, myList).catch((err: unknown) =>
         console.error('Index rater error:', err)
+      );
+      // Counts favourites from before fans were tracked (once).
+      await indexFans(username).catch((err: unknown) =>
+        console.error('Index fans error:', err)
       );
       // Analytics: active today (and new), plus their rating count.
       await recordOpen(username);
@@ -466,8 +474,20 @@ api.post('/favourites', async (c) => {
 });
 
 /** Your profile for the top of Journal: avatar and three counts. */
+/**
+ * Someone's journal profile: yours, or another user's with `?user=`.
+ * Only your own shows whether you have new fans.
+ */
 api.get('/journal', async (c) => {
-  const username = await reddit.getCurrentUsername();
+  const me = await reddit.getCurrentUsername();
+  const other = c.req.query('user');
+  const username = other ? await resolveUsername(other) : me;
+  if (other && !username) {
+    return c.json<ErrorResponse>(
+      { status: 'error', message: `Couldn't find u/${other.trim()}` },
+      404
+    );
+  }
   if (!username) {
     return c.json<JournalResponse>({
       username: null,
@@ -476,13 +496,15 @@ api.get('/journal', async (c) => {
       categories: 0,
       fans: 0,
       newFans: false,
+      favs: 0,
     });
   }
   try {
-    const [avatarUrl, reviews, fans] = await Promise.all([
+    const [avatarUrl, reviews, fans, favs] = await Promise.all([
       reddit.getSnoovatarUrl(username).catch(() => undefined),
       getUserReviews(username),
       getFanSummary(username),
+      countFavouriteUsers(username),
     ]);
     return c.json<JournalResponse>({
       username,
@@ -490,7 +512,8 @@ api.get('/journal', async (c) => {
       ratings: reviews.length,
       categories: getUserCategories(reviews).length,
       fans: fans.count,
-      newFans: fans.hasNew,
+      newFans: username === me && fans.hasNew,
+      favs,
     });
   } catch (error) {
     return failure(c, error, 'journal');
@@ -804,9 +827,12 @@ const failure = (c: Context, error: unknown, label: string) => {
   );
 };
 
-/** Your journal entries, newest first. */
+/** Journal entries, newest first: yours, or another user's with `?user=`. */
 api.get('/journal/entries', async (c) => {
-  const username = await reddit.getCurrentUsername();
+  const other = c.req.query('user');
+  const username = other
+    ? await resolveUsername(other)
+    : await reddit.getCurrentUsername();
   if (!username) return c.json<JournalEntriesResponse>({ entries: [] });
   try {
     return c.json<JournalEntriesResponse>({
@@ -844,8 +870,12 @@ api.post('/journal/entries', async (c) => {
         409
       );
     }
+    // Posted as the user first, so nothing is saved without its comment.
+    const commentUrl = await commentAsUser(source.postId, [
+      journalComment(plan.entries),
+    ]);
     return c.json<SaveJournalResponse>({
-      entries: await saveJournalEntries(username, plan.entries),
+      entries: await saveJournalEntries(username, plan.entries, commentUrl),
     });
   } catch (error) {
     return failure(c, error, 'save journal');
@@ -884,9 +914,14 @@ api.post('/reviews', async (c) => {
         409
       );
     }
+    // Posted as the user first, so nothing is saved without its comment.
+    const commentUrl = await commentAsUser(source.postId, [
+      ratingComment(fields.value),
+    ]);
     const saved = await saveReview({
       username,
       ...fields.value,
+      commentUrl,
       images: withCoverFirst(source.images, body.coverImage),
       postedAt: source.postedAt,
       postId: source.postId,
@@ -919,7 +954,20 @@ api.put('/reviews/:id', async (c) => {
         404
       );
     }
-    return c.json<FoodReview>(await updateReview(review, fields.value));
+    // The edit goes on Reddit too, as a new comment (the app can't edit the
+    // user's own comment).
+    const edit = fields.value;
+    const changed = ratingComment(edit) !== ratingComment(review);
+    const commentUrl =
+      changed && review.postId
+        ? await commentAsUser(review.postId, [ratingComment(edit, true)])
+        : review.commentUrl;
+    return c.json<FoodReview>(
+      await updateReview(review, {
+        ...edit,
+        ...(commentUrl ? { commentUrl } : {}),
+      })
+    );
   } catch (error) {
     return failure(c, error, 'update review');
   }

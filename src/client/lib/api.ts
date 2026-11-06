@@ -106,7 +106,11 @@ export const saveFavourite = (body: SaveFavouriteRequest) =>
 /** People who added you to favourites; also clears the "new fans" dot. */
 export const fetchFans = () => request<FansResponse>('/api/fans');
 
-export const fetchJournal = () => request<JournalResponse>('/api/journal');
+/** Your journal profile, or another user's. */
+export const fetchJournal = (username?: string) =>
+  request<JournalResponse>(
+    `/api/journal${username ? `?user=${encodeURIComponent(username)}` : ''}`
+  );
 
 export const saveFavouriteUser = (body: SaveFavouriteUserRequest) =>
   request<{ status: 'ok' }>('/api/favourites/users', {
@@ -201,8 +205,11 @@ export const adminResetJournal = (
     body: JSON.stringify({ username, section }),
   });
 
-export const fetchJournalEntries = () =>
-  request<JournalEntriesResponse>('/api/journal/entries');
+/** Your journal entries, or another user's. */
+export const fetchJournalEntries = (username?: string) =>
+  request<JournalEntriesResponse>(
+    `/api/journal/entries${username ? `?user=${encodeURIComponent(username)}` : ''}`
+  );
 
 export const saveJournal = (body: SaveJournalRequest) =>
   request<SaveJournalResponse>('/api/journal/entries', {

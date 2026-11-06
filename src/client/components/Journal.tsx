@@ -15,6 +15,7 @@ import { FansPopup } from './FansPopup';
 import { HomeIcon, PinIcon, PlateIcon } from './icons';
 import { JournalEntryPopup, JournalGrid } from './JournalEntries';
 import { TravelTrail } from './TravelTrail';
+import { UserSearch } from './UserSearch';
 import { Avatar, EmptyState, LoadingState } from './ui';
 
 /** The diary's three sections, shown as icon tabs under the profile. */
@@ -70,21 +71,29 @@ const Stat = ({ value, label }: { value: number | null; label: string }) => (
   </div>
 );
 
-/** The Fans count: opens the list, with a red dot when someone new added you. */
-const FansStat = ({
+/**
+ * A count that opens its list (Fans or Favs), with a red dot when someone
+ * new is in it.
+ */
+const PeopleStat = ({
   value,
-  hasNew,
+  label,
+  hint,
+  hasNew = false,
   onOpen,
 }: {
   value: number | null;
-  hasNew: boolean;
+  label: string;
+  /** Read out with the count, e.g. "See who added you". */
+  hint: string;
+  hasNew?: boolean;
   onOpen: () => void;
 }) => (
   <button
     type="button"
     onClick={onOpen}
     disabled={value === null}
-    aria-label={`${value ?? 0} fans${hasNew ? ', someone new' : ''}. See who added you`}
+    aria-label={`${value ?? 0} ${label}${hasNew ? ', someone new' : ''}. ${hint}`}
     className="flex min-w-0 flex-col items-start text-left cursor-pointer transition hover:opacity-80 disabled:cursor-default"
   >
     <span className="relative">
@@ -96,48 +105,73 @@ const FansStat = ({
         />
       )}
     </span>
-    <StatLabel label="Fans" />
+    <StatLabel label={label} />
   </button>
 );
 
 /**
  * Tab: your food diary. The top is a profile like Instagram's: your full
- * Snoo on the left, your username and three counts on the right. Below,
+ * Snoo on the left, your username and three counts (ratings, fans,
+ * favourites) on the right. Below,
  * three sections as tabs: Travel (food from trips, as a trail), Home-made
- * and Recipes. Posts are added to them from My List.
+ * and Recipes. Posts are added to them from My List. The search bar on
+ * top (or tapping a fan) shows someone else's journal instead.
  */
 export const Journal = ({
   initialSection = 'travel',
 }: {
   initialSection?: JournalKind;
 }) => {
+  // Someone else's journal being viewed (null = yours).
+  const [viewing, setViewing] = useState<string | null>(null);
   const [data, setData] = useState(journalCache);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [entries, setEntries] = useState(entriesCache);
   const [entriesError, setEntriesError] = useState<string | null>(null);
   const [opened, setOpened] = useState<JournalEntry | null>(null);
-  const [showFans, setShowFans] = useState(false);
+  // The Fans or Favs list open in a popup.
+  const [peopleList, setPeopleList] = useState<'fans' | 'favs' | null>(null);
   const [sectionId, setSectionId] = useState<JournalKind>(initialSection);
   const section = SECTIONS.find((item) => item.id === sectionId) ?? SECTIONS[0];
   // Bumped when the fans list closes, to refresh the counts.
   const [version, setVersion] = useState(0);
 
+  /** Shows someone's journal (null = yours), starting from what's cached. */
+  const view = (username: string | null) => {
+    // Searching for yourself shows your own.
+    const own = journalCache?.username;
+    const next =
+      username && own && username.toLowerCase() === own.toLowerCase()
+        ? null
+        : username;
+    setViewing(next);
+    setData(next ? null : journalCache);
+    setEntries(next ? null : entriesCache);
+    setDataError(null);
+    setEntriesError(null);
+    setOpened(null);
+  };
+
   useEffect(() => {
     let cancelled = false;
-    fetchJournal()
+    fetchJournal(viewing ?? undefined)
       .then((res) => {
-        journalCache = res;
+        if (!viewing) journalCache = res;
         if (!cancelled) setData(res);
       })
-      .catch((err: unknown) => console.error('Journal failed', err));
+      .catch((err: Error) => {
+        console.error('Journal failed', err);
+        if (!cancelled) setDataError(err.message);
+      });
     return () => {
       cancelled = true;
     };
-  }, [version]);
+  }, [version, viewing]);
 
   useEffect(() => {
     let cancelled = false;
     // The loader stays until the entries and their pictures have loaded.
-    fetchJournalEntries()
+    fetchJournalEntries(viewing ?? undefined)
       .then(async (res) => {
         await preloadImages([
           TRAIL_HOME_IMAGE.src,
@@ -146,14 +180,14 @@ export const Journal = ({
             entry.photos[0]?.image ? [entry.photos[0].image] : []
           ),
         ]);
-        entriesCache = res.entries;
+        if (!viewing) entriesCache = res.entries;
         if (!cancelled) setEntries(res.entries);
       })
       .catch((err: Error) => !cancelled && setEntriesError(err.message));
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [viewing]);
 
   const shown = entries?.filter((entry) => entry.kind === sectionId) ?? [];
 
@@ -163,111 +197,157 @@ export const Journal = ({
       journalCache = { ...data, newFans: false };
       setData(journalCache);
     }
-    setShowFans(true);
+    setPeopleList('fans');
   };
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <main className="scroll-area flex flex-1 flex-col gap-4 px-4 pt-5 pb-6">
-        <section
-          aria-label="Your profile"
-          className="mx-auto flex w-full max-w-md items-center gap-4 px-3"
-        >
-          <Avatar
-            url={data?.avatarUrl ?? null}
-            username={data?.username ?? null}
-            className="h-28 shrink-0"
+      <main className="scroll-area flex flex-1 flex-col gap-4 px-4 pt-4 pb-6">
+        <div className="mx-auto w-full max-w-md">
+          <UserSearch
+            user={viewing}
+            onSearch={view}
+            onClear={() => view(null)}
+            placeholder="Search a Redditor's journal"
           />
-          <div className="flex min-w-0 flex-1 flex-col gap-3">
-            <h1 className="truncate text-lg font-extrabold text-ink">
-              {data ? (data.username ?? 'Guest') : ' '}
-            </h1>
-            <div className="grid grid-cols-3 gap-2">
-              <Stat value={data?.ratings ?? null} label="Ratings" />
-              <Stat value={data?.categories ?? null} label="Categories" />
-              <FansStat
-                value={data?.fans ?? null}
-                hasNew={data?.newFans ?? false}
-                onOpen={openFans}
-              />
-            </div>
-          </div>
-        </section>
-        {/* Sections as icon tabs, like a profile's grid tabs. */}
-        <div
-          role="tablist"
-          aria-label="Journal sections"
-          className="mx-auto grid w-full max-w-md grid-cols-3 border-b border-line"
-        >
-          {SECTIONS.map(({ id, label, icon: Icon }) => {
-            const active = id === sectionId;
-            return (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                aria-controls="journal-section"
-                onClick={() => setSectionId(id)}
-                className={`-mb-px flex flex-col items-center gap-1 border-b-2 pt-1 pb-2 text-xs font-bold cursor-pointer transition-colors ${
-                  active
-                    ? 'border-cta text-cta'
-                    : 'border-transparent text-muted hover:text-ink'
-                }`}
-              >
-                <Icon className="h-6 w-6" />
-                {label}
-              </button>
-            );
-          })}
         </div>
-        <div
-          id="journal-section"
-          role="tabpanel"
-          className="flex flex-1 flex-col"
-        >
-          {!entries ? (
-            entriesError ? (
-              <EmptyState>
-                Couldn't load your journal: {entriesError}
-              </EmptyState>
-            ) : (
-              <LoadingState />
-            )
-          ) : shown.length === 0 ? (
-            <EmptyMascot
-              key={section.id}
-              {...EMPTY_JOURNAL_IMAGE}
-              alt="A sad carrot reading an empty diary"
-              title={section.empty}
+        {dataError && viewing ? (
+          <EmptyState>{dataError}</EmptyState>
+        ) : (
+          <>
+            <section
+              aria-label={viewing ? `u/${viewing}'s profile` : 'Your profile'}
+              className="mx-auto flex w-full max-w-md items-center gap-4 px-3"
             >
-              Tap the book on one of your posts in My List to add it here.
-            </EmptyMascot>
-          ) : section.id === 'travel' ? (
-            <TravelTrail
-              trips={shown.map((entry) => ({
-                id: entry.id,
-                place: entry.place,
-                dishes: entry.photos.length,
-                photo: entry.photos[0]?.image || null,
-              }))}
-              onOpen={(id) =>
-                setOpened(shown.find((entry) => entry.id === id) ?? null)
-              }
-            />
-          ) : (
-            <JournalGrid key={section.id} entries={shown} onOpen={setOpened} />
-          )}
-        </div>
+              <Avatar
+                url={data?.avatarUrl ?? null}
+                username={data?.username ?? null}
+                className="h-24 shrink-0"
+              />
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                <h1 className="truncate text-lg font-extrabold text-ink">
+                  {data ? (data.username ?? 'Guest') : ' '}
+                </h1>
+                <div className="grid grid-cols-3 gap-2">
+                  <Stat value={data?.ratings ?? null} label="Ratings" />
+                  {viewing ? (
+                    <>
+                      <Stat value={data?.fans ?? null} label="Fans" />
+                      <Stat value={data?.favs ?? null} label="Favourites" />
+                    </>
+                  ) : (
+                    <>
+                      <PeopleStat
+                        value={data?.fans ?? null}
+                        label="Fans"
+                        hint="See who added you"
+                        hasNew={data?.newFans ?? false}
+                        onOpen={openFans}
+                      />
+                      <PeopleStat
+                        value={data?.favs ?? null}
+                        label="Favourites"
+                        hint="See who you added"
+                        onOpen={() => setPeopleList('favs')}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            </section>
+            {/* Sections as icon tabs, like a profile's grid tabs. */}
+            <div
+              role="tablist"
+              aria-label="Journal sections"
+              className="mx-auto grid w-full max-w-md grid-cols-3 border-b border-line"
+            >
+              {SECTIONS.map(({ id, label, icon: Icon }) => {
+                const active = id === sectionId;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    aria-controls="journal-section"
+                    onClick={() => setSectionId(id)}
+                    className={`-mb-px flex flex-col items-center gap-1 border-b-2 pt-1 pb-2 text-xs font-bold cursor-pointer transition-colors ${
+                      active
+                        ? 'border-cta text-cta'
+                        : 'border-transparent text-muted hover:text-ink'
+                    }`}
+                  >
+                    <Icon className="h-6 w-6" />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <div
+              id="journal-section"
+              role="tabpanel"
+              className="flex flex-1 flex-col"
+            >
+              {!entries ? (
+                entriesError ? (
+                  <EmptyState>
+                    Couldn't load {viewing ? `u/${viewing}'s` : 'your'} journal:{' '}
+                    {entriesError}
+                  </EmptyState>
+                ) : (
+                  <LoadingState />
+                )
+              ) : shown.length === 0 ? (
+                <EmptyMascot
+                  key={section.id}
+                  {...EMPTY_JOURNAL_IMAGE}
+                  alt="A sad carrot reading an empty diary"
+                  title={section.empty}
+                >
+                  {viewing
+                    ? undefined
+                    : 'Tap the book on one of your posts in My List to add it here.'}
+                </EmptyMascot>
+              ) : section.id === 'travel' ? (
+                <TravelTrail
+                  trips={shown.map((entry) => ({
+                    id: entry.id,
+                    place: entry.place,
+                    dishes: entry.photos.length,
+                    photo: entry.photos[0]?.image || null,
+                  }))}
+                  onOpen={(id) =>
+                    setOpened(shown.find((entry) => entry.id === id) ?? null)
+                  }
+                />
+              ) : (
+                <JournalGrid
+                  key={section.id}
+                  entries={shown}
+                  onOpen={setOpened}
+                />
+              )}
+            </div>
+          </>
+        )}
       </main>
       {opened && (
-        <JournalEntryPopup entry={opened} onClose={() => setOpened(null)} />
+        <JournalEntryPopup
+          entry={opened}
+          own={!viewing}
+          onClose={() => setOpened(null)}
+        />
       )}
-      {showFans && (
+      {peopleList && (
         <FansPopup
+          list={peopleList}
           onClose={() => {
-            setShowFans(false);
+            setPeopleList(null);
             setVersion((v) => v + 1);
+          }}
+          onOpenUser={(username) => {
+            setPeopleList(null);
+            view(username);
           }}
         />
       )}

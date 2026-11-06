@@ -31,6 +31,11 @@ export type FoodReview = {
   /** When the meal was posted; for imports, the original post's date. */
   postedAt: number;
   postId?: string;
+  /**
+   * The Reddit comment the rating was posted as (from its author, on their
+   * post), where anyone can report it.
+   */
+  commentUrl?: string;
 };
 
 /** A food category with its best-rated place. */
@@ -213,6 +218,8 @@ export type JournalResponse = {
   fans: number;
   /** Someone added you since you last opened your fans list. */
   newFans: boolean;
+  /** How many people you've added to your favourites. */
+  favs: number;
 };
 
 /** Journal sections: food from a trip, home-cooked food, or a recipe. */
@@ -242,6 +249,11 @@ export type JournalEntry = {
   photos: JournalPhoto[];
   /** When it was added (ms). */
   at: number;
+  /**
+   * The Reddit comment the entry was posted as (from its author, on their
+   * post), where anyone can report it.
+   */
+  commentUrl?: string;
 };
 
 /** Your journal, newest first. */

@@ -21,6 +21,7 @@ import {
 } from './icons';
 import {
   BackButton,
+  CommentNote,
   EmptyState,
   LoadingState,
   ScreenHeader,
@@ -256,7 +257,7 @@ export const JournalWizard = ({
                   className={inputClass}
                   value={place}
                   maxLength={JOURNAL_LIMITS.place}
-                  placeholder="e.g. Goa, Mumbai, Manali"
+                  placeholder="e.g. Goa, or a café like Britto's, Baga"
                   onChange={(e) => setPlace(e.target.value)}
                 />
               </label>
@@ -297,10 +298,12 @@ export const JournalWizard = ({
               )}
             </button>
           </div>
-          {problem && (
+          {problem ? (
             <p className="bg-surface px-4 pb-3 text-center text-xs text-muted">
               {problem}
             </p>
+          ) : (
+            <CommentNote className="bg-surface px-4 pb-3" />
           )}
         </>
       )}

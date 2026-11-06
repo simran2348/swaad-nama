@@ -31,6 +31,8 @@ const keys = {
   fans: (username: string) => `user:${username}:fans`,
   /** The fans a user saw when they last opened their fans list. */
   fansSeen: (username: string) => `user:${username}:fans:seen`,
+  /** Set once a user's older favourites are counted as fans (see below). */
+  fansIndexed: (username: string) => `user:${username}:fans:v1`,
 };
 
 /** A new rating: one more for its author, who's now the latest rater. */
@@ -106,6 +108,7 @@ const parseReview = (data: Record<string, string>): FoodReview | null => {
     createdAt,
     postedAt: Number(data.postedAt ?? createdAt),
     ...(data.postId ? { postId: data.postId } : {}),
+    ...(data.commentUrl ? { commentUrl: data.commentUrl } : {}),
   };
 };
 
@@ -134,6 +137,7 @@ export const saveReview = async (
     createdAt: String(createdAt),
     postedAt: String(review.postedAt),
     ...(review.postId ? { postId: review.postId } : {}),
+    ...(review.commentUrl ? { commentUrl: review.commentUrl } : {}),
   });
   await redis.zAdd(keys.userList(review.username), {
     member: review.id,
@@ -174,6 +178,7 @@ export type ReviewEdit = Pick<
   | 'review'
   | 'budget'
   | 'vibes'
+  | 'commentUrl'
 >;
 
 export const updateReview = async (
@@ -190,6 +195,7 @@ export const updateReview = async (
     review: edit.review,
     ...(edit.budget ? { budget: String(edit.budget) } : {}),
     vibes: JSON.stringify(edit.vibes),
+    ...(edit.commentUrl ? { commentUrl: edit.commentUrl } : {}),
   });
   const cleared = [
     ...(edit.budget ? [] : ['budget']),
@@ -498,6 +504,10 @@ export const setFavourite = async (
 };
 
 /** Your favourite people, newest first, with how many ratings they have. */
+/** How many people a user has added to their favourites. */
+export const countFavouriteUsers = (username: string) =>
+  redis.zCard(keys.favouriteUsers(username));
+
 export const getFavouriteUsers = async (username: string) => {
   const saved = await redis.zRange(
     keys.favouriteUsers(username),
@@ -544,6 +554,23 @@ export const setFavouriteUser = async (
     );
   }
   return true;
+};
+
+/**
+ * Favourites added before fans were tracked: counts this user as a fan of
+ * everyone they had already favourited (once per user, on opening the app).
+ */
+export const indexFans = async (username: string) => {
+  if (await redis.get(keys.fansIndexed(username))) return;
+  const saved = await redis.zRange(keys.favouriteUsers(username), 0, -1, {
+    by: 'rank',
+  });
+  for (const { member, score } of saved) {
+    if ((await redis.zScore(keys.fans(member), username)) === undefined) {
+      await redis.zAdd(keys.fans(member), { member: username, score });
+    }
+  }
+  await redis.set(keys.fansIndexed(username), '1');
 };
 
 /** Most fans listed at once. */

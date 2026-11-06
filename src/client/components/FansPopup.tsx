@@ -1,33 +1,70 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Fan } from '../../shared/api';
-import { fetchFans } from '../lib/api';
+import { fetchFans, fetchFavourites } from '../lib/api';
 import { timeAgo } from '../lib/format';
 import { riseDelay } from '../lib/motion';
 import { CloseIcon, HeartIcon } from './icons';
 import { RaterAvatar } from './RaterAvatar';
 import { EmptyState, LoadingState } from './ui';
 
-type Result = { ok: true; fans: Fan[] } | { ok: false; error: string };
+type Person = { username: string; avatarUrl: string | null; detail: string };
+
+type Result = { ok: true; people: Person[] } | { ok: false; error: string };
+
+/** The two lists this popup shows. */
+const LISTS = {
+  fans: {
+    title: 'Fans',
+    empty: 'No one has added you to their favourites yet.',
+    // Opening it marks them as seen (on the server).
+    load: async (): Promise<Person[]> =>
+      (await fetchFans()).fans.map((fan) => ({
+        username: fan.username,
+        avatarUrl: fan.avatarUrl,
+        detail: timeAgo(fan.at),
+      })),
+  },
+  favs: {
+    title: 'Favs',
+    empty: "You haven't added anyone to your favourites yet.",
+    load: async (): Promise<Person[]> =>
+      (await fetchFavourites()).users.map((user) => ({
+        username: user.username,
+        avatarUrl: user.avatarUrl,
+        detail: `${user.count} ${user.count === 1 ? 'rating' : 'ratings'}`,
+      })),
+  },
+} as const;
 
 /**
- * Popup over a dark backdrop: everyone who added you to their favourites,
- * newest first. Opening it marks them as seen (on the server).
+ * Popup over a dark backdrop, newest first: your fans (people who added you
+ * to their favourites) or your favs (people you added). Tap someone to see
+ * their journal.
  */
-export const FansPopup = ({ onClose }: { onClose: () => void }) => {
+export const FansPopup = ({
+  list,
+  onClose,
+  onOpenUser,
+}: {
+  list: keyof typeof LISTS;
+  onClose: () => void;
+  /** Tap someone to see their journal. */
+  onOpenUser: (username: string) => void;
+}) => {
   const [result, setResult] = useState<Result>();
+  const { title, empty, load } = LISTS[list];
 
   useEffect(() => {
     let cancelled = false;
-    fetchFans()
-      .then((res) => !cancelled && setResult({ ok: true, fans: res.fans }))
+    load()
+      .then((people) => !cancelled && setResult({ ok: true, people }))
       .catch((err: Error) => {
         if (!cancelled) setResult({ ok: false, error: err.message });
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [load]);
 
   // Escape closes it.
   useEffect(() => {
@@ -40,7 +77,7 @@ export const FansPopup = ({ onClose }: { onClose: () => void }) => {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Fans"
+      aria-label={title}
       onClick={onClose}
       className="modal-backdrop fixed inset-0 z-[1100] flex items-center justify-center bg-black/60 p-4"
     >
@@ -51,7 +88,7 @@ export const FansPopup = ({ onClose }: { onClose: () => void }) => {
         <div className="flex shrink-0 items-center justify-between px-4 pt-4 pb-2">
           <h2 className="flex items-center gap-2 text-lg font-extrabold text-ink">
             <HeartIcon className="h-5 w-5 fill-current text-red-500" />
-            Fans
+            {title}
           </h2>
           <button
             type="button"
@@ -66,26 +103,29 @@ export const FansPopup = ({ onClose }: { onClose: () => void }) => {
           {!result ? (
             <LoadingState />
           ) : !result.ok ? (
-            <EmptyState>Couldn't load your fans: {result.error}</EmptyState>
-          ) : result.fans.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-muted">
-              No one has added you to their favourites yet.
-            </p>
+            <EmptyState>
+              Couldn't load your {title.toLowerCase()}: {result.error}
+            </EmptyState>
+          ) : result.people.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-muted">{empty}</p>
           ) : (
             <ul className="flex flex-col">
-              {result.fans.map((fan, i) => (
-                <li
-                  key={fan.username}
-                  className="rise flex items-center gap-3 rounded-2xl px-2 py-2"
-                  style={riseDelay(i)}
-                >
-                  <RaterAvatar url={fan.avatarUrl} />
-                  <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink">
-                    {fan.username}
-                  </span>
-                  <span className="shrink-0 text-xs text-muted">
-                    {timeAgo(fan.at)}
-                  </span>
+              {result.people.map((fan, i) => (
+                <li key={fan.username} className="rise" style={riseDelay(i)}>
+                  <button
+                    type="button"
+                    onClick={() => onOpenUser(fan.username)}
+                    aria-label={`See u/${fan.username}'s journal`}
+                    className="flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left cursor-pointer transition-colors hover:bg-soft"
+                  >
+                    <RaterAvatar url={fan.avatarUrl} />
+                    <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink">
+                      {fan.username}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted">
+                      {fan.detail}
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>

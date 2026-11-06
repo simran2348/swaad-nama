@@ -1,3 +1,4 @@
+import { navigateTo } from '@devvit/web/client';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { JournalEntry } from '../../shared/api';
@@ -5,7 +6,13 @@ import { entryTitle } from '../../shared/journal';
 import { formatDate } from '../lib/format';
 import { riseDelay } from '../lib/motion';
 import { Carousel } from './Carousel';
-import { CloseIcon, PinIcon, PlateIcon } from './icons';
+import {
+  CloseIcon,
+  ExternalLinkIcon,
+  FlagIcon,
+  PinIcon,
+  PlateIcon,
+} from './icons';
 
 /** Your notes, two lines at first; "See more" shows the rest. */
 const MoreText = ({ text }: { text: string }) => {
@@ -93,9 +100,12 @@ export const JournalGrid = ({
  */
 export const JournalEntryPopup = ({
   entry,
+  own,
   onClose,
 }: {
   entry: JournalEntry;
+  /** Your own entry (otherwise someone else's, which you can report). */
+  own: boolean;
   onClose: () => void;
 }) => {
   // Escape closes it.
@@ -177,6 +187,25 @@ export const JournalEntryPopup = ({
             </div>
           )}
           {entry.body && <MoreText text={entry.body} />}
+          {/* The entry is a Reddit comment from its author: report it there. */}
+          {entry.commentUrl && (
+            <button
+              type="button"
+              onClick={() => entry.commentUrl && navigateTo(entry.commentUrl)}
+              className="flex items-center gap-1.5 self-start text-xs font-bold text-muted cursor-pointer hover:text-ink"
+            >
+              {own ? (
+                <>
+                  <ExternalLinkIcon className="h-3.5 w-3.5" /> See your comment
+                  on Reddit
+                </>
+              ) : (
+                <>
+                  <FlagIcon className="h-3.5 w-3.5" /> Report
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>,

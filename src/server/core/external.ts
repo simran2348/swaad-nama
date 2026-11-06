@@ -28,14 +28,14 @@ import type {
  * Comment out the entries (leave the list empty) before publishing.
  */
 const TEST_IMPORT_SUBREDDITS: string[] = [
-  'punefoodporn', // ⚠️ TESTING ONLY: empty this list before publishing
+  '', // ⚠️ TESTING ONLY: empty this list before publishing
 ];
 
 /**
  * For testing only: read trending posts from this subreddit instead of the
  * one the app is installed in. Keep '' in published builds.
  */
-const TRENDING_SUBREDDIT_OVERRIDE = 'punefoodporn'; // ⚠️ TESTING ONLY: empty this before publishing
+const TRENDING_SUBREDDIT_OVERRIDE = ''; // ⚠️ TESTING ONLY: empty this before publishing
 
 const trendingSubreddit = () =>
   TRENDING_SUBREDDIT_OVERRIDE || (context.subredditName ?? '');

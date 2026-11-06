@@ -266,3 +266,10 @@ export const StarIcon = ({ className = '' }: IconProps) => (
     <path d="M12 2.8 14.8 8.6l6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9L12 2.8Z" />
   </svg>
 );
+
+/** Flag, for reporting something. */
+export const FlagIcon = ({ className = '' }: IconProps) => (
+  <svg {...strokeProps} aria-hidden className={className}>
+    <path d="M5 21V4M5 4h11l-2 4 2 4H5" />
+  </svg>
+);

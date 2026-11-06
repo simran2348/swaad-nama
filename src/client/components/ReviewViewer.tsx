@@ -9,13 +9,14 @@ import { TIER_COLORS, TIER_LABELS, TIER_TEXT } from '../lib/tiers';
 import {
   CalendarIcon,
   ExternalLinkIcon,
+  FlagIcon,
   PencilIcon,
   PinIcon,
   TrashIcon,
 } from './icons';
 import { Modal, PostContent, type MenuAction } from './Modal';
 import { ReviewFields, type ReviewDraft } from './ReviewFields';
-import { Spinner } from './ui';
+import { CommentNote, Spinner } from './ui';
 
 const toDraft = (review: FoodReview): ReviewDraft => ({
   title: review.title,
@@ -57,7 +58,7 @@ export const ReviewViewer = ({
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const tier = tierFor(current.rating);
-  const { postId } = current;
+  const { postId, commentUrl } = current;
 
   const save = async () => {
     if (!draft || busy) return;
@@ -96,6 +97,16 @@ export const ReviewViewer = ({
             label: 'View on Reddit',
             icon: ExternalLinkIcon,
             onSelect: () => navigateTo(redditPostUrl(postId)),
+          },
+        ]
+      : []),
+    // What was typed is a Reddit comment from its author: report it there.
+    ...(commentUrl
+      ? [
+          {
+            label: editable ? 'See your comment' : 'Report',
+            icon: editable ? ExternalLinkIcon : FlagIcon,
+            onSelect: () => navigateTo(commentUrl),
           },
         ]
       : []),
@@ -149,6 +160,7 @@ export const ReviewViewer = ({
             foods={foods}
             onChange={(patch) => setDraft((d) => (d ? { ...d, ...patch } : d))}
           />
+          <CommentNote />
         </div>
       </Modal>
     );

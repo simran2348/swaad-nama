@@ -21,7 +21,10 @@
       "enable": true,
       "domains": ["api.olamaps.io", "photon.komoot.io", "basemaps.cartocdn.com"]
     },
-    "reddit": true,
+    "reddit": {
+      "enable": true,
+      "asUser": ["SUBMIT_COMMENT"]
+    },
     "journeys": true
   },
   "menu": {

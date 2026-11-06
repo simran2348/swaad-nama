@@ -11,6 +11,7 @@ import { ThemeSurface } from './FoodBackground';
 import { ReviewFields, type ReviewDraft } from './ReviewFields';
 import {
   BackButton,
+  CommentNote,
   EmptyState,
   LoadingState,
   ScreenHeader,
@@ -230,10 +231,12 @@ export const ImportWizard = ({
               )}
             </button>
           </div>
-          {!isDraftComplete(item.draft) && (
+          {!isDraftComplete(item.draft) ? (
             <p className="bg-surface px-4 pb-3 text-center text-xs text-muted">
               Add a food category, café and rating to continue.
             </p>
+          ) : (
+            <CommentNote className="bg-surface px-4 pb-3" />
           )}
         </>
       )}
