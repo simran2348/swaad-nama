@@ -9,8 +9,8 @@ import { normalizeName } from '../../shared/food';
 import { fetchCategories } from '../lib/api';
 import { riseDelay } from '../lib/motion';
 import { forgetMyPosts } from '../lib/postCache';
-import { toggleFavouriteUser, useIsFavouriteUser } from '../lib/favourites';
 import { HeroBackdrop, PodiumArt } from './decor';
+import { FavouriteUserButton } from './FavouriteUserButton';
 import { HeartIcon, PlateIcon, StarIcon } from './icons';
 import { ReviewViewer } from './ReviewViewer';
 import { RankedList, UserReviews } from './reviews';
@@ -441,29 +441,5 @@ export const Ratings = ({
         <FavouriteUserButton username={current.data.username} />
       )}
     </div>
-  );
-};
-
-/** Floating pill on someone's ratings: adds them to your favourites. */
-const FavouriteUserButton = ({ username }: { username: string }) => {
-  const favourite = useIsFavouriteUser(username);
-  return (
-    <button
-      type="button"
-      onClick={() =>
-        toggleFavouriteUser({ username, avatarUrl: null, count: 0 })
-      }
-      aria-pressed={favourite}
-      className={`absolute right-4 bottom-4 z-10 flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold shadow-lg cursor-pointer transition hover:scale-105 active:scale-95 ${
-        favourite
-          ? 'border border-line bg-surface text-ink'
-          : 'bg-cta text-cta-ink hover:brightness-95'
-      }`}
-    >
-      <HeartIcon
-        className={`h-4 w-4 ${favourite ? 'fill-current text-red-500' : ''}`}
-      />
-      {favourite ? 'In favourites' : 'Add user to favourites'}
-    </button>
   );
 };

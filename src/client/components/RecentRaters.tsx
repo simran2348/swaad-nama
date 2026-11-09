@@ -112,12 +112,23 @@ export const RecentRaters = ({
 };
 
 /** A small red heart on someone you've added to your favourites. */
-export const FavouriteBadge = ({ username }: { username: string }) =>
+export const FavouriteBadge = ({
+  username,
+  small = false,
+}: {
+  username: string;
+  /** For small avatars, like in lists. */
+  small?: boolean;
+}) =>
   useIsFavouriteUser(username) ? (
     <span
       aria-label="In your favourites"
-      className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-red-500 shadow-sm"
+      className={`absolute flex items-center justify-center rounded-full bg-white text-red-500 shadow-sm ${
+        small ? '-top-0.5 -right-0.5 h-4 w-4' : '-top-1 -right-1 h-5 w-5'
+      }`}
     >
-      <HeartIcon className="h-3 w-3 fill-current" />
+      <HeartIcon
+        className={`fill-current ${small ? 'h-2.5 w-2.5' : 'h-3 w-3'}`}
+      />
     </span>
   ) : null;

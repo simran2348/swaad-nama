@@ -12,6 +12,7 @@ import {
 } from '../lib/art';
 import { EmptyMascot } from './EmptyMascot';
 import { FansPopup } from './FansPopup';
+import { FavouriteUserButton } from './FavouriteUserButton';
 import { HomeIcon, PinIcon, PlateIcon } from './icons';
 import { JournalEntryPopup, JournalGrid } from './JournalEntries';
 import { TravelTrail } from './TravelTrail';
@@ -200,9 +201,22 @@ export const Journal = ({
     setPeopleList('fans');
   };
 
+  // Just the spinner until the profile and the entries are both in, so the
+  // page doesn't fill in piece by piece.
+  const loading = (!data && !dataError) || (!entries && !entriesError);
+  if (loading) {
+    return (
+      <div className="flex h-full min-h-0 flex-1 items-center justify-center">
+        <LoadingState label="" />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
-      <main className="scroll-area flex flex-1 flex-col gap-4 px-4 pt-4 pb-6">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col">
+      <main
+        className={`scroll-area flex flex-1 flex-col gap-4 px-4 pt-4 ${viewing ? 'pb-20' : 'pb-6'}`}
+      >
         <div className="mx-auto w-full max-w-md">
           <UserSearch
             user={viewing}
@@ -331,6 +345,10 @@ export const Journal = ({
           </>
         )}
       </main>
+      {/* Someone else's journal: add them to your favourites. */}
+      {viewing && data?.username && (
+        <FavouriteUserButton username={data.username} />
+      )}
       {opened && (
         <JournalEntryPopup
           entry={opened}

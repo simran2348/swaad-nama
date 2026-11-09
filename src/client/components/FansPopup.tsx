@@ -5,6 +5,7 @@ import { timeAgo } from '../lib/format';
 import { riseDelay } from '../lib/motion';
 import { CloseIcon, HeartIcon } from './icons';
 import { RaterAvatar } from './RaterAvatar';
+import { FavouriteBadge } from './RecentRaters';
 import { EmptyState, LoadingState } from './ui';
 
 type Person = { username: string; avatarUrl: string | null; detail: string };
@@ -118,7 +119,13 @@ export const FansPopup = ({
                     aria-label={`See u/${fan.username}'s journal`}
                     className="flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left cursor-pointer transition-colors hover:bg-soft"
                   >
-                    <RaterAvatar url={fan.avatarUrl} />
+                    <span className="relative shrink-0">
+                      <RaterAvatar url={fan.avatarUrl} />
+                      {/* Fans you've also added to your favourites. */}
+                      {list === 'fans' && (
+                        <FavouriteBadge small username={fan.username} />
+                      )}
+                    </span>
                     <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink">
                       {fan.username}
                     </span>
