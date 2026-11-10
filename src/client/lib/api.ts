@@ -216,3 +216,8 @@ export const saveJournal = (body: SaveJournalRequest) =>
     method: 'POST',
     body: JSON.stringify(body),
   });
+
+export const deleteJournalEntry = (id: string) =>
+  request<{ status: 'ok' }>(`/api/journal/entries/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });

@@ -236,7 +236,8 @@ export type JournalPhoto = {
 
 /**
  * A journal entry made from one of your posts. A trip keeps all the post's
- * photos; home-made food and recipes have one photo each.
+ * photos, each with its dish; home-made food and recipes are one dish, in
+ * one photo or several (each photo then has the same dish and recipe).
  */
 export type JournalEntry = {
   id: string;
@@ -272,6 +273,11 @@ export type SaveJournalRequest = {
   place: string;
   body: string;
   photos: JournalPhoto[];
+  /**
+   * Home-made food and recipes: every photo shows the same dish, saved as
+   * one entry with one dish name and recipe (the first photo's).
+   */
+  oneDish?: boolean;
 };
 
 export type SaveJournalResponse = {

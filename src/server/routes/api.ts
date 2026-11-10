@@ -55,8 +55,8 @@ import {
 import { TEAM_USERNAMES } from '../../shared/team';
 import { isAppMode, isPaletteId } from '../../shared/theme';
 import { cleanVibes, isValidBudget, isValidRating } from '../../shared/food';
-import { journalComment, ratingComment } from '../../shared/comments';
-import { commentAsUser } from '../core/userComments';
+import { journalComments, ratingComment } from '../../shared/comments';
+import { commentAsUser, linkComments } from '../core/userComments';
 import {
   fetchTile,
   getMapArea,
@@ -74,6 +74,7 @@ import {
   hasJournalPost,
   removeJournalEntries,
   saveJournalEntries,
+  removeJournalEntryIds,
 } from '../core/journal';
 import { planJournalEntries } from '../../shared/journal';
 import { getAvatarUrl } from '../core/avatars';
@@ -109,6 +110,7 @@ import {
   getTopRaters,
   countRatings,
   saveReview,
+  setReviewCommentId,
 } from '../core/reviews';
 
 const MAX_TEXT = { title: 120, food: 60, place: 80, review: 2000 };
@@ -871,14 +873,43 @@ api.post('/journal/entries', async (c) => {
       );
     }
     // Posted as the user first, so nothing is saved without its comment.
-    const commentUrl = await commentAsUser(source.postId, [
-      journalComment(plan.entries),
-    ]);
-    return c.json<SaveJournalResponse>({
-      entries: await saveJournalEntries(username, plan.entries, commentUrl),
+    const comment = await commentAsUser(
+      source.postId,
+      journalComments(plan.entries)
+    );
+    const entries = await saveJournalEntries(
+      username,
+      plan.entries,
+      comment.url
+    );
+    await linkComments(comment.ids, {
+      kind: 'journal',
+      username,
+      ids: entries.map((entry) => entry.id),
     });
+    return c.json<SaveJournalResponse>({ entries });
   } catch (error) {
     return failure(c, error, 'save journal');
+  }
+});
+
+/** Deletes one of your journal entries (its Reddit comment stays). */
+api.delete('/journal/entries/:id', async (c) => {
+  const username = await reddit.getCurrentUsername();
+  if (!username) return unauthorized(c);
+  try {
+    const id = c.req.param('id');
+    const mine = await getJournalEntries(username);
+    if (!mine.some((entry) => entry.id === id)) {
+      return c.json<ErrorResponse>(
+        { status: 'error', message: 'Journal entry not found' },
+        404
+      );
+    }
+    await removeJournalEntryIds(username, [id]);
+    return c.json({ status: 'ok' });
+  } catch (error) {
+    return failure(c, error, 'delete journal entry');
   }
 });
 
@@ -915,17 +946,19 @@ api.post('/reviews', async (c) => {
       );
     }
     // Posted as the user first, so nothing is saved without its comment.
-    const commentUrl = await commentAsUser(source.postId, [
+    const comment = await commentAsUser(source.postId, [
       ratingComment(fields.value),
     ]);
     const saved = await saveReview({
       username,
       ...fields.value,
-      commentUrl,
+      commentUrl: comment.url,
       images: withCoverFirst(source.images, body.coverImage),
       postedAt: source.postedAt,
       postId: source.postId,
     });
+    await setReviewCommentId(saved.id, comment.ids[0] ?? '');
+    await linkComments(comment.ids, { kind: 'review', id: saved.id });
     return c.json<CreateReviewResponse>({
       review: saved,
       postUrl: postUrl(source.postId),
@@ -958,10 +991,16 @@ api.put('/reviews/:id', async (c) => {
     // user's own comment).
     const edit = fields.value;
     const changed = ratingComment(edit) !== ratingComment(review);
-    const commentUrl =
-      changed && review.postId
-        ? await commentAsUser(review.postId, [ratingComment(edit, true)])
-        : review.commentUrl;
+    let commentUrl = review.commentUrl;
+    if (changed && review.postId) {
+      const comment = await commentAsUser(review.postId, [
+        ratingComment(edit, true),
+      ]);
+      commentUrl = comment.url;
+      // From now on the rating goes with its new comment.
+      await setReviewCommentId(review.id, comment.ids[0] ?? '');
+      await linkComments(comment.ids, { kind: 'review', id: review.id });
+    }
     return c.json<FoodReview>(
       await updateReview(review, {
         ...edit,

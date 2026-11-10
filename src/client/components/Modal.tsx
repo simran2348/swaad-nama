@@ -44,7 +44,14 @@ const MoreDots = () => (
   </svg>
 );
 
-const Menu = ({ actions }: { actions: MenuAction[] }) => {
+/** A ⋯ button that opens a menu of actions below it, on the right. */
+export const Menu = ({
+  actions,
+  buttonClassName = roundButton,
+}: {
+  actions: MenuAction[];
+  buttonClassName?: string;
+}) => {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -53,7 +60,7 @@ const Menu = ({ actions }: { actions: MenuAction[] }) => {
         aria-label="More options"
         aria-haspopup="menu"
         aria-expanded={open}
-        className={roundButton}
+        className={buttonClassName}
       >
         <MoreDots />
       </button>

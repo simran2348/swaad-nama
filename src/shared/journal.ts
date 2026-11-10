@@ -51,8 +51,8 @@ export type PlannedEntry = Omit<JournalEntry, 'id' | 'at'>;
 /**
  * Turns a save request into the entries to store, checking it against the
  * post's own photos (every one of them, each once). A trip is one entry;
- * home-made food and recipes are one entry per photo, and a home-made
- * photo with a recipe is filed under Recipes.
+ * home-made food and recipes are one entry per photo (or one for them all,
+ * with `oneDish`), and home-made food with a recipe is filed under Recipes.
  */
 export const planJournalEntries = (
   request: Partial<SaveJournalRequest>,
@@ -87,6 +87,16 @@ export const planJournalEntries = (
           .trim()
           .slice(0, JOURNAL_LIMITS.place)
       : '';
+  // One dish in every photo: the first photo's name and recipe for all.
+  const oneDish =
+    kind !== 'travel' && request.oneDish === true && photos.length > 1;
+  const lead = photos[0];
+  if (oneDish && lead) {
+    for (const photo of photos) {
+      photo.dish = lead.dish;
+      photo.recipe = lead.recipe;
+    }
+  }
   const problem = journalProblem(kind, place, photos);
   if (problem) return { ok: false, message: problem };
   const body = String(request.body ?? '')
@@ -95,6 +105,15 @@ export const planJournalEntries = (
 
   if (kind === 'travel') {
     return { ok: true, entries: [{ kind, postId, place, body, photos }] };
+  }
+  if (oneDish) {
+    const recipe = photos[0]?.recipe ?? '';
+    return {
+      ok: true,
+      entries: [
+        { kind: recipe ? 'recipe' : 'home', postId, place: '', body, photos },
+      ],
+    };
   }
   return {
     ok: true,

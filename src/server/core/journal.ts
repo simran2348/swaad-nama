@@ -128,3 +128,13 @@ export const removeJournalEntries = async (
   }
   return ids.length;
 };
+
+/** Removes some of a user's journal entries by id. */
+export const removeJournalEntryIds = async (
+  username: string,
+  ids: readonly string[]
+) => {
+  if (ids.length === 0) return;
+  await redis.hDel(keys.entries(username), [...ids]);
+  await redis.zRem(keys.order(username), [...ids]);
+};

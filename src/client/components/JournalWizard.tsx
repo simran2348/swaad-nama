@@ -61,6 +61,58 @@ const KIND_INFO: Record<JournalKind, string> = {
   recipe: 'Each photo is saved as its own recipe, so every photo needs one.',
 };
 
+/** The same, when every photo shows one dish. */
+const ONE_DISH_INFO: Record<Exclude<JournalKind, 'travel'>, string> = {
+  home: 'All the photos are saved together as one dish. Add a recipe and it goes in Recipes instead of Home-made.',
+  recipe: 'All the photos are saved together as one recipe.',
+};
+
+/** Two-way choice: one dish in every photo, or a dish per photo. */
+const DishChoice = ({
+  count,
+  oneDish,
+  onChange,
+}: {
+  count: number;
+  oneDish: boolean;
+  onChange: (oneDish: boolean) => void;
+}) => (
+  <fieldset className="flex flex-col gap-2">
+    <legend className="mb-2 text-sm font-extrabold text-ink">
+      What's in these {count} photos?
+    </legend>
+    <div className="grid grid-cols-2 gap-2">
+      {[
+        { value: true, label: 'One dish', hint: 'Same dish in every photo' },
+        {
+          value: false,
+          label: 'A dish per photo',
+          hint: 'Each photo is different',
+        },
+      ].map(({ value, label, hint }) => {
+        const active = value === oneDish;
+        return (
+          <button
+            key={label}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(value)}
+            className={`flex flex-col items-start rounded-2xl border px-3 py-2.5 text-left cursor-pointer transition ${
+              active
+                ? 'border-cta bg-cta-tint ring-1 ring-cta'
+                : 'border-line bg-surface hover:border-cta'
+            }`}
+          >
+            <span className="text-sm font-extrabold text-ink">{label}</span>
+            <span className="text-xs text-muted">{hint}</span>
+          </button>
+        );
+      })}
+    </div>
+  </fieldset>
+);
+
 const inputClass =
   'w-full rounded-lg border border-line bg-field px-3 py-2 text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-cta';
 const labelClass = 'flex flex-col gap-1 text-sm font-semibold text-ink';
@@ -90,6 +142,8 @@ export const JournalWizard = ({
   const [photos, setPhotos] = useState<JournalPhoto[]>([]);
   const [place, setPlace] = useState('');
   const [body, setBody] = useState('');
+  // Home-made and recipes with many photos: all one dish, or one per photo.
+  const [oneDish, setOneDish] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -116,7 +170,21 @@ export const JournalWizard = ({
       prev.map((photo, i) => (i === index ? { ...photo, ...patch } : photo))
     );
 
-  const problem = kind ? journalProblem(kind, place, photos) : null;
+  const canGroup = kind !== null && kind !== 'travel' && photos.length > 1;
+  const grouped = canGroup && oneDish;
+  // One dish: the first photo's name and recipe go for them all.
+  const lead = photos[0];
+  const sent =
+    grouped && lead
+      ? photos.map((photo) => ({
+          ...photo,
+          dish: lead.dish,
+          recipe: lead.recipe,
+        }))
+      : photos;
+  const problem = kind
+    ? journalProblem(kind, place, grouped && lead ? [lead] : photos)
+    : null;
 
   const save = async () => {
     if (!kind || !post || problem || saving) return;
@@ -127,7 +195,8 @@ export const JournalWizard = ({
         kind,
         place,
         body,
-        photos,
+        photos: sent,
+        oneDish: grouped,
       });
       const recipes = entries.filter((e) => e.kind === 'recipe').length;
       const home = entries.length - recipes;
@@ -198,57 +267,105 @@ export const JournalWizard = ({
           >
             <p className="flex gap-2 rounded-xl bg-cta-tint px-3 py-2.5 text-sm text-ink">
               <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-cta" />
-              {KIND_INFO[kind]}
+              {grouped ? ONE_DISH_INFO[kind] : KIND_INFO[kind]}
             </p>
 
-            {photos.map((photo, i) => (
+            {canGroup && (
+              <DishChoice
+                count={photos.length}
+                oneDish={oneDish}
+                onChange={setOneDish}
+              />
+            )}
+
+            {grouped && lead ? (
               <section
-                key={photo.image || i}
-                aria-label={`Photo ${i + 1}`}
+                aria-label="Your dish"
                 className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-3 shadow-sm"
               >
-                {photo.image ? (
-                  <img
-                    src={photo.image}
-                    alt={`Photo ${i + 1} from your post`}
-                    className="h-48 w-full rounded-xl bg-black object-cover"
-                  />
-                ) : (
-                  <span className="flex h-24 items-center justify-center rounded-xl bg-cta-tint text-cta">
-                    <PlateIcon className="h-9 w-9" />
-                  </span>
-                )}
-                {photos.length > 1 && (
-                  <span className="-mt-1 text-xs font-semibold text-muted">
-                    Photo {i + 1} of {photos.length}
-                  </span>
-                )}
+                {/* Every photo, small, scrolling sideways. */}
+                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                  {photos.map((photo, i) => (
+                    <img
+                      key={photo.image || i}
+                      src={photo.image}
+                      alt={`Photo ${i + 1} from your post`}
+                      className="h-28 w-24 shrink-0 rounded-xl bg-black object-cover"
+                    />
+                  ))}
+                </div>
                 <label className={labelClass}>
                   Dish name
                   <input
                     className={inputClass}
-                    value={photo.dish}
+                    value={lead.dish}
                     maxLength={JOURNAL_LIMITS.dish}
-                    placeholder="e.g. Misal pav"
-                    onChange={(e) => updatePhoto(i, { dish: e.target.value })}
+                    placeholder="e.g. Paneer butter masala"
+                    onChange={(e) => updatePhoto(0, { dish: e.target.value })}
                   />
                 </label>
-                {kind !== 'travel' && (
+                <label className={labelClass}>
+                  <span>Recipe {kind === 'home' && <Optional />}</span>
+                  <textarea
+                    className={`${inputClass} min-h-28`}
+                    value={lead.recipe}
+                    maxLength={JOURNAL_LIMITS.recipe}
+                    placeholder="Ingredients and steps…"
+                    onChange={(e) => updatePhoto(0, { recipe: e.target.value })}
+                  />
+                </label>
+              </section>
+            ) : null}
+
+            {!grouped &&
+              photos.map((photo, i) => (
+                <section
+                  key={photo.image || i}
+                  aria-label={`Photo ${i + 1}`}
+                  className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-3 shadow-sm"
+                >
+                  {photo.image ? (
+                    <img
+                      src={photo.image}
+                      alt={`Photo ${i + 1} from your post`}
+                      className="h-48 w-full rounded-xl bg-black object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-24 items-center justify-center rounded-xl bg-cta-tint text-cta">
+                      <PlateIcon className="h-9 w-9" />
+                    </span>
+                  )}
+                  {photos.length > 1 && (
+                    <span className="-mt-1 text-xs font-semibold text-muted">
+                      Photo {i + 1} of {photos.length}
+                    </span>
+                  )}
                   <label className={labelClass}>
-                    <span>Recipe {kind === 'home' && <Optional />}</span>
-                    <textarea
-                      className={`${inputClass} min-h-28`}
-                      value={photo.recipe}
-                      maxLength={JOURNAL_LIMITS.recipe}
-                      placeholder="Ingredients and steps…"
-                      onChange={(e) =>
-                        updatePhoto(i, { recipe: e.target.value })
-                      }
+                    Dish name
+                    <input
+                      className={inputClass}
+                      value={photo.dish}
+                      maxLength={JOURNAL_LIMITS.dish}
+                      placeholder="e.g. Misal pav"
+                      onChange={(e) => updatePhoto(i, { dish: e.target.value })}
                     />
                   </label>
-                )}
-              </section>
-            ))}
+                  {kind !== 'travel' && (
+                    <label className={labelClass}>
+                      <span>Recipe {kind === 'home' && <Optional />}</span>
+                      <textarea
+                        className={`${inputClass} min-h-28`}
+                        value={photo.recipe}
+                        maxLength={JOURNAL_LIMITS.recipe}
+                        placeholder="Ingredients and steps…"
+                        onChange={(e) =>
+                          updatePhoto(i, { recipe: e.target.value })
+                        }
+                      />
+                    </label>
+                  )}
+                </section>
+              ))}
 
             {kind === 'travel' && (
               <label className={labelClass}>

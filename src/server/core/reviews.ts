@@ -167,6 +167,16 @@ const countFood = async (food: string, delta: number) => {
 export const getReview = async (id: string): Promise<FoodReview | null> =>
   parseReview(await redis.hGetAll(keys.review(id)));
 
+/**
+ * The Reddit comment a rating's text is in now (after an edit, the newest
+ * one). Only that comment being removed takes the rating out of the app.
+ */
+export const setReviewCommentId = (id: string, commentId: string) =>
+  redis.hSet(keys.review(id), { commentId });
+
+export const getReviewCommentId = async (id: string) =>
+  (await redis.hGet(keys.review(id), 'commentId')) ?? null;
+
 /** Fields a user can change on their own rating. */
 export type ReviewEdit = Pick<
   FoodReview,

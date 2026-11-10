@@ -354,6 +354,12 @@ export const Journal = ({
           entry={opened}
           own={!viewing}
           onClose={() => setOpened(null)}
+          onDeleted={(id) => {
+            const left = (entries ?? []).filter((entry) => entry.id !== id);
+            if (!viewing) entriesCache = left;
+            setEntries(left);
+            setOpened(null);
+          }}
         />
       )}
       {peopleList && (

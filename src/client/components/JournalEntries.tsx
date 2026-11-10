@@ -1,18 +1,25 @@
-import { navigateTo } from '@devvit/web/client';
+import { navigateTo, showToast } from '@devvit/web/client';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { JournalEntry } from '../../shared/api';
 import { entryTitle } from '../../shared/journal';
-import { formatDate } from '../lib/format';
+import { deleteJournalEntry } from '../lib/api';
+import { formatDate, redditPostUrl } from '../lib/format';
 import { riseDelay } from '../lib/motion';
 import { Carousel } from './Carousel';
 import {
-  CloseIcon,
+  ArrowLeftIcon,
   ExternalLinkIcon,
   FlagIcon,
   PinIcon,
   PlateIcon,
+  TrashIcon,
 } from './icons';
+import { Menu, type MenuAction } from './Modal';
+import { Spinner } from './ui';
+
+const headerButton =
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-soft text-soft-ink cursor-pointer hover:brightness-95';
 
 /** Your notes, two lines at first; "See more" shows the rest. */
 const MoreText = ({ text }: { text: string }) => {
@@ -102,12 +109,66 @@ export const JournalEntryPopup = ({
   entry,
   own,
   onClose,
+  onDeleted,
 }: {
   entry: JournalEntry;
   /** Your own entry (otherwise someone else's, which you can report). */
   own: boolean;
   onClose: () => void;
+  /** After you've deleted your own entry. */
+  onDeleted: (id: string) => void;
 }) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const remove = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await deleteJournalEntry(entry.id);
+      showToast('Journal entry deleted');
+      onDeleted(entry.id);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Couldn't delete");
+      setDeleting(false);
+    }
+  };
+
+  const { commentUrl } = entry;
+  const actions: MenuAction[] = [
+    {
+      label: 'View on Reddit',
+      icon: ExternalLinkIcon,
+      onSelect: () => navigateTo(redditPostUrl(entry.postId)),
+    },
+    // What was typed is a Reddit comment from its author: report it there.
+    ...(commentUrl
+      ? [
+          own
+            ? {
+                label: 'See your comment',
+                icon: ExternalLinkIcon,
+                onSelect: () => navigateTo(commentUrl),
+              }
+            : {
+                label: 'Report',
+                icon: FlagIcon,
+                onSelect: () => navigateTo(commentUrl),
+              },
+        ]
+      : []),
+    ...(own
+      ? [
+          {
+            label: 'Delete entry',
+            icon: TrashIcon,
+            danger: true,
+            onSelect: () => setConfirmDelete(true),
+          },
+        ]
+      : []),
+  ];
+
   // Escape closes it.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -133,22 +194,23 @@ export const JournalEntryPopup = ({
         onClick={(e) => e.stopPropagation()}
         className="modal-panel flex max-h-[min(40rem,100%)] min-h-0 w-full max-w-sm flex-col overflow-hidden rounded-3xl border border-line bg-popover shadow-2xl"
       >
-        <div className="flex shrink-0 items-start justify-between gap-2 px-4 pt-4 pb-2">
-          <div className="min-w-0">
+        <div className="flex shrink-0 items-start gap-2 px-4 pt-4 pb-2">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Back"
+            className={headerButton}
+          >
+            <ArrowLeftIcon className="h-4 w-4" />
+          </button>
+          <div className="min-w-0 flex-1">
             <h2 className="flex items-center gap-1.5 text-lg leading-tight font-extrabold text-ink">
               {trip && <PinIcon className="h-5 w-5 shrink-0 text-cta" />}
               <span className="break-words">{entryTitle(entry)}</span>
             </h2>
             <p className="text-xs text-muted">{formatDate(entry.at)}</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-soft text-soft-ink cursor-pointer hover:brightness-95"
-          >
-            <CloseIcon className="h-4 w-4" />
-          </button>
+          <Menu actions={actions} buttonClassName={headerButton} />
         </div>
         <div className="scroll-area flex min-h-0 flex-1 flex-col gap-3 px-4 pb-5">
           {images.length > 0 ? (
@@ -187,26 +249,32 @@ export const JournalEntryPopup = ({
             </div>
           )}
           {entry.body && <MoreText text={entry.body} />}
-          {/* The entry is a Reddit comment from its author: report it there. */}
-          {entry.commentUrl && (
-            <button
-              type="button"
-              onClick={() => entry.commentUrl && navigateTo(entry.commentUrl)}
-              className="flex items-center gap-1.5 self-start text-xs font-bold text-muted cursor-pointer hover:text-ink"
-            >
-              {own ? (
-                <>
-                  <ExternalLinkIcon className="h-3.5 w-3.5" /> See your comment
-                  on Reddit
-                </>
-              ) : (
-                <>
-                  <FlagIcon className="h-3.5 w-3.5" /> Report
-                </>
-              )}
-            </button>
-          )}
         </div>
+        {confirmDelete && (
+          <div className="flex shrink-0 flex-col gap-2 border-t border-line px-4 py-3">
+            <p className="text-sm font-semibold text-ink">
+              Delete this entry? Your Reddit post and comment stay.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="flex-1 rounded-full border border-line bg-soft px-4 py-2 text-sm font-bold text-soft-ink cursor-pointer hover:brightness-95"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void remove()}
+                disabled={deleting}
+                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-rose-600 px-4 py-2 text-sm font-bold text-white cursor-pointer hover:brightness-95 disabled:opacity-60"
+              >
+                {deleting && <Spinner className="h-4 w-4" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body

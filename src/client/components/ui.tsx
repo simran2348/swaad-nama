@@ -100,11 +100,11 @@ export const Avatar = ({
 };
 
 /**
- * Says that saving also adds a short comment from the user on their post
- * (e.g. "Added to SwaadNama journal (Home-made)").
+ * Says that saving also posts what was typed as a Reddit comment from the
+ * user on their post (where anyone can see and report it).
  */
 export const CommentNote = ({ className = '' }: { className?: string }) => (
   <p className={`text-center text-xs text-muted ${className}`}>
-    Saving also adds a short comment from you on your Reddit post.
+    Saving also posts this as a comment from you on your Reddit post.
   </p>
 );

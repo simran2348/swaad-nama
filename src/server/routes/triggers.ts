@@ -1,7 +1,15 @@
-import { Hono } from 'hono';
-import type { OnAppInstallRequest, TriggerResponse } from '@devvit/web/shared';
+import { Hono, type Context } from 'hono';
+import type {
+  OnAppInstallRequest,
+  OnCommentDeleteRequest,
+  OnModActionRequest,
+  TriggerResponse,
+} from '@devvit/web/shared';
 import { context } from '@devvit/web/server';
+import { removeJournalEntryIds } from '../core/journal';
 import { createHubPost, getHubPostId } from '../core/post';
+import { deleteReview, getReview, getReviewCommentId } from '../core/reviews';
+import { takeCommentedItem } from '../core/userComments';
 
 export const triggers = new Hono();
 
@@ -45,4 +53,60 @@ triggers.post('/on-app-install', async (c) => {
       200
     );
   }
+});
+
+/**
+ * A rating's or journal entry's Reddit comment is gone (deleted by its
+ * author, or removed by a mod): take what it was posted for out of the app,
+ * so nothing shows without its comment. Returns what was removed.
+ */
+const removeCommentedContent = async (commentId: string): Promise<string> => {
+  const item = await takeCommentedItem(commentId);
+  if (!item) return 'not a SwaadNama comment';
+  if (item.kind === 'journal') {
+    await removeJournalEntryIds(item.username, item.ids);
+    return `removed ${item.ids.length} journal entries of u/${item.username}`;
+  }
+  // An edited rating has a newer comment; only that one counts.
+  const current = await getReviewCommentId(item.id);
+  const review = await getReview(item.id);
+  if (!review || (current && current !== commentId)) return 'older comment';
+  await deleteReview(review);
+  return `removed rating ${review.id} of u/${review.username}`;
+};
+
+/** Always 200: a failing trigger is only logged. */
+const handled = (c: Context, label: string, run: () => Promise<string>) =>
+  run()
+    .then((message) =>
+      c.json<TriggerResponse>({ status: 'success', message }, 200)
+    )
+    .catch((error: unknown) => {
+      console.error(`${label} failed:`, error);
+      return c.json<TriggerResponse>(
+        { status: 'success', message: `${label} failed; logged` },
+        200
+      );
+    });
+
+triggers.post('/on-comment-delete', async (c) => {
+  const input = await c.req.json<OnCommentDeleteRequest>();
+  return handled(c, 'on-comment-delete', () =>
+    removeCommentedContent(input.commentId)
+  );
+});
+
+/** Mods removing a comment (or marking it spam). */
+const REMOVALS = new Set(['removecomment', 'spamcomment']);
+
+triggers.post('/on-mod-action', async (c) => {
+  const input = await c.req.json<OnModActionRequest>();
+  const commentId = input.targetComment?.id;
+  if (!input.action || !REMOVALS.has(input.action) || !commentId) {
+    return c.json<TriggerResponse>(
+      { status: 'success', message: 'ignored' },
+      200
+    );
+  }
+  return handled(c, 'on-mod-action', () => removeCommentedContent(commentId));
 });
