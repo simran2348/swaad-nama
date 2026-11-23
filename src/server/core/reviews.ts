@@ -1,11 +1,15 @@
 import { redis } from '@devvit/web/server';
-import type {
-  FoodCategory,
-  FoodReview,
-  PlaceLocation,
-  TopRatedFood,
-} from '../../shared/api';
-import { cleanVibes, isValidBudget, normalizeName } from '../../shared/food';
+import type { FoodCategory, FoodReview, TopRatedFood } from '../../shared/api';
+import { normalizeName } from '../../shared/food';
+import {
+  foodCategories,
+  matchFoodKeys,
+  parseImages,
+  parseStoredJson,
+  parseStoredReview,
+  rankFoods,
+  roundAverage,
+} from '../../shared/ratings';
 import { countRater, recordEvent } from './stats';
 
 const keys = {
@@ -60,57 +64,8 @@ const indexReview = (review: Pick<FoodReview, 'id' | 'food' | 'rating'>) =>
 const unindexReview = (review: Pick<FoodReview, 'id' | 'food'>) =>
   redis.zRem(keys.foodReviews(review.food), [review.id]);
 
-const parseJson = (value: string | undefined): unknown => {
-  if (!value) return undefined;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return undefined;
-  }
-};
-
-const parseLocation = (value: unknown): PlaceLocation | undefined => {
-  if (typeof value !== 'object' || value === null) return undefined;
-  const { address, lat, lon } = { address: '', lat: NaN, lon: NaN, ...value };
-  return typeof address === 'string' &&
-    typeof lat === 'number' &&
-    typeof lon === 'number' &&
-    Number.isFinite(lat) &&
-    Number.isFinite(lon)
-    ? { address, lat, lon }
-    : undefined;
-};
-
-const parseImages = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.filter((url): url is string => typeof url === 'string')
-    : [];
-
-const parseReview = (data: Record<string, string>): FoodReview | null => {
-  if (!data.id || !data.username) return null;
-  const rating = Number(data.rating ?? 0);
-  const createdAt = Number(data.createdAt ?? 0);
-  const location = parseLocation(parseJson(data.location));
-  const budget = Number(data.budget);
-  return {
-    id: data.id,
-    username: data.username,
-    title: data.title ?? '',
-    food: data.food ?? '',
-    place: data.place ?? '',
-    ...(location ? { location } : {}),
-    // Reviews saved before the 10-point scale were rated out of 5.
-    rating: data.scale === '10' ? rating : rating * 2,
-    review: data.review ?? '',
-    ...(isValidBudget(budget) ? { budget } : {}),
-    vibes: cleanVibes(parseJson(data.vibes)),
-    images: parseImages(parseJson(data.images)),
-    createdAt,
-    postedAt: Number(data.postedAt ?? createdAt),
-    ...(data.postId ? { postId: data.postId } : {}),
-    ...(data.commentUrl ? { commentUrl: data.commentUrl } : {}),
-  };
-};
+/** Ratings are read back with parseStoredReview (shared/ratings.ts). */
+const parseReview = parseStoredReview;
 
 export const saveReview = async (
   input: Omit<FoodReview, 'id' | 'createdAt'>
@@ -271,31 +226,8 @@ export const getTopFoods = async (limit = 20): Promise<string[]> => {
 };
 
 /** One user's food categories, each with their highest-rated place. */
-export const getUserCategories = (reviews: FoodReview[]): FoodCategory[] => {
-  const groups = new Map<string, FoodReview[]>();
-  for (const review of reviews) {
-    const key = normalizeName(review.food);
-    groups.set(key, [...(groups.get(key) ?? []), review]);
-  }
-  return [...groups.values()]
-    .map((group) => {
-      const sorted = [...group].sort((a, b) => b.rating - a.rating);
-      const [best] = sorted;
-      // Prefer the best place's photo, else any photo in the category.
-      const image =
-        best?.images[0] ?? sorted.find((r) => r.images[0])?.images[0] ?? null;
-      return {
-        food: best?.food ?? '',
-        count: group.length,
-        average:
-          Math.round(
-            (group.reduce((sum, r) => sum + r.rating, 0) / group.length) * 10
-          ) / 10,
-        top: best ? { place: best.place, rating: best.rating, image } : null,
-      };
-    })
-    .sort((a, b) => b.count - a.count);
-};
+export const getUserCategories = (reviews: FoodReview[]): FoodCategory[] =>
+  foodCategories(reviews);
 
 /**
  * Adds a user's older ratings (saved before the community index existed) to
@@ -332,33 +264,29 @@ const summarizeFoods = async (
       )
     ),
   ]);
-  const ranked = foodKeys
-    .map((food, i) => {
+  const ranked = rankFoods(
+    foodKeys.map((food, i) => {
       const scores = ratings[i] ?? [];
-      const total = scores.reduce((sum, { score }) => sum + score, 0);
       return {
         food: names[i] ?? food,
-        count: scores.length,
-        average: scores.length ? total / scores.length : 0,
+        scores: scores.map(({ score }) => score),
         bestId: scores[0]?.member,
       };
-    })
-    .filter((f) => f.count > 0)
-    .sort((a, b) =>
-      keepOrder ? 0 : b.count - a.count || b.average - a.average
-    )
-    .slice(0, limit);
+    }),
+    limit,
+    keepOrder
+  );
   // Each card shows the photo from that food's best rating.
   return Promise.all(
     ranked.map(async ({ bestId, ...food }) => {
       const images = bestId
         ? parseImages(
-            parseJson(await redis.hGet(keys.review(bestId), 'images'))
+            parseStoredJson(await redis.hGet(keys.review(bestId), 'images'))
           )
         : [];
       return {
         ...food,
-        average: Math.round(food.average * 10) / 10,
+        average: roundAverage(food.average),
         image: images[0] ?? null,
       };
     })
@@ -399,12 +327,10 @@ export const searchFoods = async (
   const names = foodKeys.length
     ? await redis.hMGet(keys.foodNames(), foodKeys)
     : [];
-  const matches = foodKeys
-    .filter(
-      (key, i) =>
-        key.includes(needle) || normalizeName(names[i] ?? '').includes(needle)
-    )
-    .slice(0, FOOD_SEARCH_SCAN);
+  const matches = matchFoodKeys(foodKeys, names, query).slice(
+    0,
+    FOOD_SEARCH_SCAN
+  );
   return summarizeFoods(matches, limit);
 };
 

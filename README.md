@@ -116,3 +116,58 @@ in Reddit's storage for the app. Nothing is shared outside Reddit except
 the location lookups described above.
 
 See the [Privacy Policy](PRIVACY.md) and [Terms & Conditions](TERMS.md).
+
+## For developers
+
+Built with Devvit Web: React 19 and Tailwind on the client, a Hono server,
+and Redis for storage. Requires Node 24 (see `.nvmrc`).
+
+### Commands
+
+| Command              | What it does                                                     |
+| -------------------- | ---------------------------------------------------------------- |
+| `npm run dev`        | Playtest live in the dev subreddit                               |
+| `npm run build`      | Build client and server                                          |
+| `npm run test:types` | Type check                                                       |
+| `npm run lint`       | Lint                                                             |
+| `npm run test`       | Unit tests (`src/shared/*.test.ts`, Node's built-in test runner) |
+| `npm run deploy`     | Type check, lint and unit tests, then upload a new version       |
+| `npm run launch`     | Deploy and publish for review                                    |
+
+CI (`.github/workflows/ci.yaml`) runs the type check, lint, unit tests and
+build on every push.
+
+### Testing
+
+The rules are kept as pure functions in `src/shared/` (no Devvit or Redis),
+so they can be tested on their own; the server and client call them.
+
+| Test file              | Covers                                                                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `food.test.ts`         | Name matching, tiers, rating and budget limits, tags, food suggestions, ranking ties                                                        |
+| `ratings.test.ts`      | Reading saved ratings (including old 5-point ones), per-dish summaries, top-rated order, dish search                                        |
+| `places.test.ts`       | Reddit post links and photos, Trending (3/5/7-day windows and ranking), Ola Maps and Photon responses, India-only checks, map tile requests |
+| `journal.test.ts`      | Turning posts into journal entries (trips, home-made, recipes)                                                                              |
+| `comments.test.ts`     | The Reddit comments posted for ratings and journal entries, and splitting long ones                                                         |
+| `commentLinks.test.ts` | Linking those comments back to their rating or entry, so removing a comment removes it from the app                                         |
+| `access.test.ts`       | The App status setting and who may use a closed app                                                                                         |
+| `stats.test.ts`        | India-time days and weeks for usage numbers, which events the client may report                                                             |
+| `theme.test.ts`        | Valid colour themes and light/dark choices                                                                                                  |
+
+Code that only talks to Reddit, Redis or the map services (for example
+saving a rating, or calling Ola Maps) isn't unit tested; it's checked by
+playtesting.
+
+### Project structure
+
+```
+src/
+  client/          React app: splash.tsx (feed view), game.tsx (expanded app), components/
+  server/
+    index.ts       Hono server entry
+    routes/        api.ts (app API), menu.ts, triggers.ts, telemetry.ts
+    core/          Redis and Reddit work: reviews, journal, external (Reddit posts,
+                   Ola Maps, Photon, CARTO), userComments, stats, admin, ...
+  shared/          Types (api.ts) and the pure, unit-tested rules (*.test.ts beside them)
+devvit.json        App config: entry points, settings, menu, triggers, fetch domains
+```

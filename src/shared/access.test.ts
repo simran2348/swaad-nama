@@ -15,3 +15,15 @@ test('only the admin can use a closed app', () => {
   assert.equal(canUseApp('closed', false), false);
   assert.equal(canUseApp('closed', true), true);
 });
+
+test('everyone can use an open app', () => {
+  assert.equal(canUseApp('open', false), true);
+  assert.equal(canUseApp('open', true), true);
+});
+
+test('odd App status values count as open', () => {
+  assert.equal(toAppStatus([]), 'open');
+  assert.equal(toAppStatus(null), 'open');
+  assert.equal(toAppStatus(['closed', 'open']), 'closed');
+  assert.equal(toAppStatus('CLOSED'), 'open');
+});

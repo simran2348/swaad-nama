@@ -7,6 +7,19 @@ import {
 } from '@devvit/web/server';
 import { cleanPostBody } from '../../shared/text';
 import { normalizeName } from '../../shared/food';
+import {
+  DAY_MS,
+  inIndia,
+  parseOlaPlaces,
+  parseOlaReverse,
+  parsePhotonArea,
+  parsePhotonPlaces,
+  parsePhotonReverse,
+  parseTileRequest,
+  pickTrending,
+  postImageUrls,
+  TRENDING_WINDOWS_DAYS,
+} from '../../shared/places';
 import type {
   ImportPostResponse,
   MapArea,
@@ -49,19 +62,7 @@ const canImportFrom = (name: string) => {
   );
 };
 
-const POST_ID_PATTERNS = [
-  /reddit\.com\/(?:r\/[^/]+\/)?comments\/([a-z0-9]+)/i,
-  /redd\.it\/([a-z0-9]+)/i,
-];
-
-export const parsePostId = (input: string): string | null => {
-  const url = input.trim();
-  for (const pattern of POST_ID_PATTERNS) {
-    const id = url.match(pattern)?.[1];
-    if (id) return id.toLowerCase();
-  }
-  return null;
-};
+export { parsePostId } from '../../shared/places';
 
 /**
  * Removed (by mods, Reddit or AutoModerator), spam or deleted posts still
@@ -70,26 +71,8 @@ export const parsePostId = (input: string): string | null => {
 const isGone = (post: Post) =>
   post.removed || post.spam || post.removedByCategory !== undefined;
 
-// Reddit preview URLs come HTML-escaped.
-const cleanImageUrl = (url: string) => url.replace(/&amp;/g, '&');
-
-/** A link straight to an image file (e.g. i.redd.it or Imgur). */
-const isImageLink = (url: string) =>
-  /^https:\/\/(i\.redd\.it|i\.imgur\.com)\//i.test(url) ||
-  /\.(jpe?g|png|webp|gif)(\?|$)/i.test(url);
-
-/**
- * A post's photos. Reddit's preview usually has them, but it can be missing
- * (e.g. on brand-new posts), so fall back to the thumbnail, then to the
- * post's own link when it points straight at an image.
- */
-const postImages = (post: Post): string[] => {
-  const images = post.gallery.map((media) => cleanImageUrl(media.url));
-  if (images.length > 0) return images;
-  if (isImageLink(post.url)) return [cleanImageUrl(post.url)];
-  if (post.thumbnail) return [cleanImageUrl(post.thumbnail.url)];
-  return [];
-};
+/** A post's photos (see postImageUrls). */
+const postImages = (post: Post): string[] => postImageUrls(post);
 
 /**
  * Loads one of `username`'s posts from this subreddit so it can be turned
@@ -199,21 +182,10 @@ export const listMyPosts = async (
 // Trending: the last day's posts with the most upvotes and comments
 // ---------------------------------------------------------------------------
 
-/**
- * Windows tried in turn, in days: the first with enough photo posts wins,
- * so quiet subreddits still get a full row.
- */
-const TRENDING_WINDOWS_DAYS = [3, 5, 7];
-/** Widen until a full row (TRENDING_COUNT) is found. */
-const TRENDING_MIN_POSTS = 10;
-const DAY_MS = 24 * 60 * 60 * 1000;
 /** Most of the newest posts checked (a busy week can have more). */
 const TRENDING_SCAN_LIMIT = 300;
-const TRENDING_COUNT = 10;
 /** Shared by everyone for this long, so Reddit isn't asked on every open. */
 const TRENDING_CACHE_MS = 10 * 60 * 1000;
-/** A comment takes more effort than an upvote, so it counts for more. */
-const COMMENT_WEIGHT = 2;
 
 const parseTrending = (value: string | undefined): TrendingResponse | null => {
   if (!value) return null;
@@ -238,7 +210,7 @@ export const getTrendingPosts = async (): Promise<TrendingResponse> => {
   const maxDays = TRENDING_WINDOWS_DAYS[TRENDING_WINDOWS_DAYS.length - 1] ?? 7;
   const oldest = Date.now() - maxDays * DAY_MS;
   // Newest first, back to the widest window.
-  const found: (TrendingPost & { rank: number })[] = [];
+  const found: TrendingPost[] = [];
   const listing = reddit.getNewPosts({
     subredditName,
     limit: TRENDING_SCAN_LIMIT,
@@ -260,23 +232,11 @@ export const getTrendingPosts = async (): Promise<TrendingResponse> => {
       score: post.score,
       comments: post.numberOfComments,
       postedAt,
-      rank: post.score + post.numberOfComments * COMMENT_WEIGHT,
     });
   }
 
-  // The narrowest window with enough posts, else the widest.
-  const days =
-    TRENDING_WINDOWS_DAYS.find(
-      (d) =>
-        found.filter((p) => p.postedAt >= Date.now() - d * DAY_MS).length >=
-        TRENDING_MIN_POSTS
-    ) ?? maxDays;
-  const since = Date.now() - days * DAY_MS;
-  const posts = found
-    .filter((p) => p.postedAt >= since)
-    .sort((a, b) => b.rank - a.rank)
-    .slice(0, TRENDING_COUNT)
-    .map(({ rank: _rank, ...post }) => post);
+  // The narrowest window with enough posts (else the widest), ranked.
+  const { days, posts } = pickTrending(found, Date.now());
 
   const result: TrendingResponse = { subredditName, days, posts };
   await redis.set(cacheKey, JSON.stringify(result), {
@@ -287,52 +247,16 @@ export const getTrendingPosts = async (): Promise<TrendingResponse> => {
 
 // ---------------------------------------------------------------------------
 // Photon (free OpenStreetMap geocoder, no API key): the map area lookup,
-// and the fallback for place search when Ola Maps isn't available
+// and the fallback for place search when Ola Maps isn't available.
+// Response parsing lives in shared/places.ts (unit tested).
 // ---------------------------------------------------------------------------
 
 const PHOTON_URL = 'https://photon.komoot.io/api/';
 
 // Place search is limited to India: Photon searches inside this box
-// (west, south, east, north), then results from neighbouring countries
-// that fall inside it are dropped by country code.
+// (west, south, east, north); results from neighbouring countries inside it
+// are dropped by country code (parsePhotonPlaces).
 const INDIA_BBOX = '68.1,6.5,97.5,35.7';
-const INDIA_COUNTRY_CODE = 'IN';
-
-// Food spots are listed before other matches (streets, towns, …).
-const FOOD_TYPES = new Set([
-  'cafe',
-  'restaurant',
-  'fast_food',
-  'bar',
-  'pub',
-  'bakery',
-  'ice_cream',
-  'food_court',
-  'biergarten',
-]);
-
-/** Reads `obj[key]` from untyped JSON. */
-const field = (obj: unknown, key: string): unknown =>
-  typeof obj === 'object' && obj !== null ? Reflect.get(obj, key) : undefined;
-
-const text = (obj: unknown, key: string): string => {
-  const value = field(obj, key);
-  return typeof value === 'string' ? value : '';
-};
-
-/** "12 High St, Pune, India" from a Photon result's properties. */
-const addressOf = (props: unknown): string => {
-  const street = [text(props, 'housenumber'), text(props, 'street')]
-    .filter(Boolean)
-    .join(' ');
-  return [
-    street,
-    text(props, 'city') || text(props, 'county'),
-    text(props, 'country'),
-  ]
-    .filter(Boolean)
-    .join(', ');
-};
 
 /** Photon place search: the fallback when Ola Maps isn't available. */
 const photonSearch = async (
@@ -341,7 +265,7 @@ const photonSearch = async (
 ): Promise<PlaceSearchResponse> => {
   const params = new URLSearchParams({
     q: query,
-    // Extra, since results outside India are dropped below.
+    // Extra, since results outside India are dropped.
     limit: '15',
     lang: 'en',
     bbox: INDIA_BBOX,
@@ -350,35 +274,13 @@ const photonSearch = async (
   const res = await fetch(`${PHOTON_URL}?${params}`);
   if (!res.ok) throw new Error(`Place search failed (${res.status})`);
   const json: unknown = await res.json();
-  const features = field(json, 'features');
-
-  const found = (Array.isArray(features) ? features : []).flatMap(
-    (feature: unknown) => {
-      const props = field(feature, 'properties');
-      const coords = field(field(feature, 'geometry'), 'coordinates');
-      const [lon, lat] = Array.isArray(coords) ? coords : [];
-      const name = text(props, 'name');
-      if (!name || typeof lat !== 'number' || typeof lon !== 'number') {
-        return [];
-      }
-      if (text(props, 'countrycode').toUpperCase() !== INDIA_COUNTRY_CODE) {
-        return [];
-      }
-      const address = addressOf(props);
-      const isFood = FOOD_TYPES.has(text(props, 'osm_value'));
-      return [{ place: { name, address, lat, lon }, isFood }];
-    }
-  );
-
-  found.sort((a, b) => Number(b.isFood) - Number(a.isFood));
-  return {
-    places: found.slice(0, 10).map(({ place }) => place),
-    source: 'photon',
-  };
+  return { places: parsePhotonPlaces(json), source: 'photon' };
 };
 
 /** Thrown for spots we can't use; its message is shown to the user. */
 export class PlaceError extends Error {}
+
+const NOT_IN_INDIA = 'Only places in India can be added for now.';
 
 /** Photon reverse lookup: the fallback when Ola Maps isn't available. */
 const photonPlaceAt = async (coords: {
@@ -392,22 +294,9 @@ const photonPlaceAt = async (coords: {
   });
   const res = await fetch(`https://photon.komoot.io/reverse?${params}`);
   if (!res.ok) throw new Error(`Address lookup failed (${res.status})`);
-  const json: unknown = await res.json();
-  const features = field(json, 'features');
-  const props = Array.isArray(features)
-    ? field(features[0], 'properties')
-    : undefined;
-  if (text(props, 'countrycode').toUpperCase() !== INDIA_COUNTRY_CODE) {
-    throw new PlaceError('Only places in India can be added for now.');
-  }
-  return {
-    place: {
-      name: text(props, 'name'),
-      address: addressOf(props),
-      lat: coords.lat,
-      lon: coords.lon,
-    },
-  };
+  const result = parsePhotonReverse(await res.json(), coords);
+  if (!result) throw new PlaceError(NOT_IN_INDIA);
+  return result;
 };
 
 // ---------------------------------------------------------------------------
@@ -417,31 +306,9 @@ const photonPlaceAt = async (coords: {
 
 const OLA_URL = 'https://api.olamaps.io/places/v1';
 
-/** India's rough bounds; used to keep places India-only. */
-const INDIA_BOUNDS = { west: 68.1, south: 6.5, east: 97.5, north: 35.7 };
-const inIndia = ({ lat, lon }: { lat: number; lon: number }) =>
-  lat >= INDIA_BOUNDS.south &&
-  lat <= INDIA_BOUNDS.north &&
-  lon >= INDIA_BOUNDS.west &&
-  lon <= INDIA_BOUNDS.east;
-
-// Ola place types that count as food spots (listed first in results).
-const OLA_FOOD_TYPES = new Set([
-  'restaurant',
-  'cafe',
-  'food',
-  'bakery',
-  'bar',
-  'meal_takeaway',
-  'meal_delivery',
-]);
-
 /** Repeat searches and spot lookups are served from Redis, saving quota. */
 const SEARCH_CACHE_MS = 3 * DAY_MS;
 const SPOT_CACHE_MS = 7 * DAY_MS;
-
-/** A picked spot names the nearest food place only if it's this close. */
-const SPOT_PLACE_MAX_M = 40;
 
 /**
  * Ola Maps needs an API key, kept as a secret app setting. Set it with
@@ -484,24 +351,6 @@ const writeCache = (key: string, value: unknown, ms: number) =>
     expiration: new Date(Date.now() + ms),
   });
 
-/** A result's coordinates from Ola's `geometry.location`. */
-const olaPoint = (result: unknown): { lat: number; lon: number } | null => {
-  const location = field(field(result, 'geometry'), 'location');
-  const lat = field(location, 'lat');
-  const lon = field(location, 'lng');
-  return typeof lat === 'number' && typeof lon === 'number'
-    ? { lat, lon }
-    : null;
-};
-
-const isOlaFood = (result: unknown) => {
-  const types = field(result, 'types');
-  return (
-    Array.isArray(types) &&
-    types.some((t) => typeof t === 'string' && OLA_FOOD_TYPES.has(t))
-  );
-};
-
 const olaSearch = async (
   query: string,
   key: string,
@@ -515,33 +364,7 @@ const olaSearch = async (
     },
     key
   );
-  const predictions = field(json, 'predictions');
-  const found = (Array.isArray(predictions) ? predictions : []).flatMap(
-    (prediction: unknown) => {
-      const point = olaPoint(prediction);
-      const formatting = field(prediction, 'structured_formatting');
-      const name =
-        text(formatting, 'main_text') ||
-        text(prediction, 'description').split(',')[0]?.trim() ||
-        '';
-      if (!name || !point || !inIndia(point)) return [];
-      return [
-        {
-          place: {
-            name,
-            address: text(formatting, 'secondary_text'),
-            ...point,
-          },
-          isFood: isOlaFood(prediction),
-        },
-      ];
-    }
-  );
-  found.sort((a, b) => Number(b.isFood) - Number(a.isFood));
-  return {
-    places: found.slice(0, 10).map(({ place }) => place),
-    source: 'ola',
-  };
+  return { places: parseOlaPlaces(json), source: 'ola' };
 };
 
 const olaPlaceAt = async (
@@ -553,28 +376,7 @@ const olaPlaceAt = async (
     { latlng: `${coords.lat},${coords.lon}` },
     key
   );
-  const results = field(json, 'results');
-  const list: unknown[] = Array.isArray(results) ? results : [];
-  // Name the spot after a food place right there, if there is one.
-  const food = list.find((result) => {
-    const distance = field(result, 'distance_meters');
-    return (
-      isOlaFood(result) &&
-      typeof distance === 'number' &&
-      distance <= SPOT_PLACE_MAX_M
-    );
-  });
-  const [nearest] = list;
-  const pick = food ?? nearest;
-  const name = food ? text(food, 'name') : '';
-  // Ola's address starts with the place's own name; drop it.
-  const full = text(pick, 'formatted_address');
-  const ownName = text(pick, 'name');
-  const address =
-    ownName && full.startsWith(`${ownName}, `)
-      ? full.slice(ownName.length + 2)
-      : full;
-  return { place: { name, address, lat: coords.lat, lon: coords.lon } };
+  return parseOlaReverse(json, coords);
 };
 
 /** Search places in India by name, nearest the subreddit's area first. */
@@ -607,9 +409,7 @@ export const placeAt = async (coords: {
   lat: number;
   lon: number;
 }): Promise<PlaceAtResponse> => {
-  if (!inIndia(coords)) {
-    throw new PlaceError('Only places in India can be added for now.');
-  }
+  if (!inIndia(coords)) throw new PlaceError(NOT_IN_INDIA);
   const key = await getOlaKey();
   if (!key) return photonPlaceAt(coords);
   const cacheKey = `spot:ola:v1:${coords.lat.toFixed(5)},${coords.lon.toFixed(5)}`;
@@ -629,15 +429,6 @@ export const placeAt = async (coords: {
 // Map area (subreddit setting, looked up once with Photon and cached)
 // ---------------------------------------------------------------------------
 
-/** How far to zoom in on an area Photon gives only as a point. */
-const AREA_ZOOM: Record<string, number> = {
-  country: 5,
-  state: 7,
-  county: 9,
-  district: 10,
-  city: 11,
-};
-
 const lookupArea = async (name: string): Promise<MapArea | null> => {
   const params = new URLSearchParams({ q: name, limit: '1', lang: 'en' });
   for (const layer of ['country', 'state', 'county', 'district', 'city']) {
@@ -645,29 +436,7 @@ const lookupArea = async (name: string): Promise<MapArea | null> => {
   }
   const res = await fetch(`${PHOTON_URL}?${params}`);
   if (!res.ok) throw new Error(`Map area lookup failed (${res.status})`);
-  const features = field(await res.json(), 'features');
-  const [feature]: unknown[] = Array.isArray(features) ? features : [];
-  const props = field(feature, 'properties');
-  const coords = field(field(feature, 'geometry'), 'coordinates');
-  const [lon, lat] = Array.isArray(coords) ? coords : [];
-  if (typeof lat !== 'number' || typeof lon !== 'number') return null;
-  // Photon's extent is [west, north, east, south].
-  const extent = field(props, 'extent');
-  const [west, north, east, south] = Array.isArray(extent) ? extent : [];
-  const bounds =
-    typeof west === 'number' &&
-    typeof north === 'number' &&
-    typeof east === 'number' &&
-    typeof south === 'number'
-      ? { south, west, north, east }
-      : null;
-  return {
-    name: text(props, 'name') || name,
-    lat,
-    lon,
-    zoom: AREA_ZOOM[text(props, 'type')] ?? 11,
-    bounds,
-  };
+  return parsePhotonArea(await res.json(), name);
 };
 
 const parseArea = (value: string | undefined): MapArea | null => {
@@ -697,11 +466,6 @@ export const getMapArea = async (): Promise<MapArea | null> => {
 // Map tiles (CARTO basemaps), proxied so the web view only loads our origin
 // ---------------------------------------------------------------------------
 
-const TILE_STYLES: Record<string, string> = {
-  light: 'rastertiles/voyager',
-  dark: 'dark_all',
-};
-
 /**
  * CARTO needs an API key, kept as a secret app setting. Set it with
  * `npx devvit settings set cartoApiKey`. Without one, tiles come back with
@@ -725,18 +489,12 @@ export const fetchTile = async (
   x: string,
   y: string
 ): Promise<Response | null> => {
-  // Own keys only, so names like "constructor" don't count as styles.
-  const path = Object.hasOwn(TILE_STYLES, style) ? TILE_STYLES[style] : null;
-  const yMatch = y.match(/^(\d+)(@2x)?$/);
-  const zoom = Number(z);
-  if (!path || !yMatch || !/^\d+$/.test(x) || !(zoom >= 0 && zoom <= 20)) {
-    return null;
-  }
-  const [, yTile, retina = ''] = yMatch;
+  const tile = parseTileRequest(style, z, x, y);
+  if (!tile) return null;
   const key = await getCartoKey();
   const query = key ? `?${new URLSearchParams({ key })}` : '';
   const upstream = await fetch(
-    `https://basemaps.cartocdn.com/${path}/${zoom}/${x}/${yTile}${retina}.png${query}`
+    `https://basemaps.cartocdn.com/${tile.path}/${tile.zoom}/${tile.x}/${tile.y}${tile.retina}.png${query}`
   );
   if (!upstream.ok) return null;
   return new Response(await upstream.arrayBuffer(), {

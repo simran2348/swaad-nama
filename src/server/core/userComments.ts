@@ -1,4 +1,11 @@
 import { reddit, redis } from '@devvit/web/server';
+import {
+  commentKey,
+  parseCommentedItem,
+  type CommentedItem,
+} from '../../shared/commentLinks';
+
+export type { CommentedItem };
 
 /**
  * Text people type in SwaadNama is posted as Reddit comments from them on
@@ -7,47 +14,9 @@ import { reddit, redis } from '@devvit/web/server';
  * came from is taken out of the app too (see the comment triggers).
  */
 
-/** What a comment was posted for. */
-export type CommentedItem =
-  | { kind: 'review'; id: string }
-  | { kind: 'journal'; username: string; ids: string[] };
-
 const keys = {
   /** Comment id (t1_…) → the item it was posted for, as JSON. */
   items: () => 'comments:items',
-};
-
-const commentKey = (id: string) => `t1_${id.replace(/^t1_/, '')}`;
-
-const parseItem = (value: string | undefined): CommentedItem | null => {
-  if (!value) return null;
-  let data: unknown;
-  try {
-    data = JSON.parse(value);
-  } catch {
-    return null;
-  }
-  if (typeof data !== 'object' || data === null) return null;
-  const { kind, id, username, ids } = {
-    kind: '',
-    id: '',
-    username: '',
-    ids: [],
-    ...data,
-  };
-  if (kind === 'review' && typeof id === 'string' && id) {
-    return { kind, id };
-  }
-  if (kind === 'journal' && typeof username === 'string' && username) {
-    return {
-      kind,
-      username,
-      ids: Array.isArray(ids)
-        ? ids.filter((x: unknown): x is string => typeof x === 'string')
-        : [],
-    };
-  }
-  return null;
 };
 
 /**
@@ -105,7 +74,7 @@ export const takeCommentedItem = async (
   commentId: string
 ): Promise<CommentedItem | null> => {
   const key = commentKey(commentId);
-  const item = parseItem(await redis.hGet(keys.items(), key));
+  const item = parseCommentedItem(await redis.hGet(keys.items(), key));
   if (item) await redis.hDel(keys.items(), [key]);
   return item;
 };
