@@ -22,7 +22,8 @@ subreddit the app is installed in:
 - **Your preferences:** your chosen colour theme and light or dark mode.
 - **Usage counts:** which days you opened the app, the day you first used
   it, and how many ratings you've made. These power the "Recently rated" and
-  "Top raters" lists and simple usage statistics for the app's developer.
+  "Top raters" lists and simple usage statistics that the subreddit's
+  moderators can see in Mod tools.
   Daily records are kept for about 40 days.
 
 Your ratings, username and avatar are visible to other members of the

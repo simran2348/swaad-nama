@@ -1,3 +1,4 @@
+import type { ModAccess } from './modAccess';
 import type { AppMode, PaletteId } from './theme';
 
 /** A spot picked from place search; drives the map. */
@@ -65,7 +66,7 @@ export type ProfileResponse = {
   avatarUrl: string | null;
   /** The user's saved palette, if they've picked one. */
   theme: PaletteId | null;
-  /** False while a mod has set "App status" to Closed (admin excepted). */
+  /** False while a mod has set "App status" to Closed (mods excepted). */
   canUse: boolean;
 };
 
@@ -74,8 +75,10 @@ export type InitResponse = {
   subredditName: string;
   /** The user's saved light/dark choice, if they've made one. */
   mode: AppMode | null;
-  /** False while a mod has set "App status" to Closed (admin excepted). */
+  /** False while a mod has set "App status" to Closed (mods excepted). */
   canUse: boolean;
+  /** The user's mod access in this subreddit (for Mod tools). */
+  mod: ModAccess;
   myList: FoodReview[];
   foods: string[];
 };

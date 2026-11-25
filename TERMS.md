@@ -18,8 +18,8 @@ subreddit's own rules apply as well.
   the subreddit's rules.
 - Your ratings, username and avatar are shown to other members of the
   subreddit inside the app.
-- Subreddit moderators and the app's developer may remove ratings that
-  break these terms.
+- Subreddit moderators may remove ratings and journal entries that break
+  these terms.
 
 ## Your content
 

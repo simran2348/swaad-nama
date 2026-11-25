@@ -1,4 +1,4 @@
-import { reddit } from '@devvit/web/server';
+import { context, reddit } from '@devvit/web/server';
 import type {
   AdminDeletePostsResponse,
   AdminResetRatingsResponse,
@@ -19,10 +19,9 @@ const parseIds = (input: string) =>
     .filter((id, i, all) => /^[a-z0-9]+$/.test(id) && all.indexOf(id) === i);
 
 /**
- * Deletes posts by id, from any subreddit, as far as the app can:
- * - posts made by the app account are deleted outright;
- * - anything else is mod-removed, which only works where the app is a
- *   moderator (subreddits it's installed in).
+ * Mod tool: takes posts in this subreddit down by id (posts anywhere else are
+ * refused). Posts made by the app account (SwaadNama posts) are deleted;
+ * members' posts are mod-removed, like a mod removing them on Reddit.
  * Ratings attached to a post are removed too.
  */
 export const deletePosts = async (
@@ -32,6 +31,15 @@ export const deletePosts = async (
   for (const id of parseIds(input)) {
     try {
       const post = await reddit.getPostById(`t3_${id}`);
+      const here = context.subredditName ?? '';
+      if (post.subredditName.toLowerCase() !== here.toLowerCase()) {
+        results.push({
+          id,
+          status: 'failed',
+          message: `Not a post in r/${here}`,
+        });
+        continue;
+      }
       // Drop ratings that point at this post.
       const ratings = await getUserReviews(post.authorName);
       await Promise.all(

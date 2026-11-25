@@ -10,7 +10,7 @@ test('reads the App status setting', () => {
   assert.equal(toAppStatus(['other']), 'open');
 });
 
-test('only the admin can use a closed app', () => {
+test('only mods can use a closed app', () => {
   assert.equal(canUseApp('open', false), true);
   assert.equal(canUseApp('closed', false), false);
   assert.equal(canUseApp('closed', true), true);

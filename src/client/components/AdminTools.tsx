@@ -87,6 +87,16 @@ const JOURNAL_SECTIONS: { id: AdminJournalSection; label: string }[] = [
 ];
 
 /** Removes a user's journal entries: one section, or the whole journal. */
+/** The mod permission every tool below needs (checked on the server too). */
+const NeedsPermission = () => (
+  <p className="flex flex-wrap items-center gap-1 px-1 text-xs font-semibold text-ink">
+    <ShieldIcon className="h-3.5 w-3.5 shrink-0 text-cta" />
+    Needs the mod permission <strong>Manage Posts &amp; Comments</strong>
+    {' (or '}
+    <strong>Everything</strong>).
+  </p>
+);
+
 const ResetJournal = () => {
   const [username, setUsername] = useState('');
   const [section, setSection] = useState<AdminJournalSection>('travel');
@@ -124,6 +134,7 @@ const ResetJournal = () => {
         Removes their trips, home-made food or recipes, or the whole journal.
         Their Reddit posts and ratings aren't touched.
       </p>
+      <NeedsPermission />
       <input
         id="admin-reset-journal"
         className={inputClass}
@@ -170,7 +181,10 @@ const ResetJournal = () => {
   );
 };
 
-/** Admin-only tools (the server rejects everyone else too). */
+/**
+ * Mod tools that change data: for mods with the "Manage Posts & Comments"
+ * permission (the server checks it on every call too).
+ */
 export const AdminTools = ({
   onStatsReset,
 }: {
@@ -237,10 +251,11 @@ export const AdminTools = ({
           Delete posts
         </label>
         <p className="px-1 text-xs leading-relaxed text-muted">
-          Comma-separated ids or links. Only a post's author can delete it, so
-          users' posts are mod-removed instead: they leave the subreddit and
-          SwaadNama, and their ratings are removed too.
+          Comma-separated ids or links of posts in this subreddit. Members'
+          posts are mod-removed, like removing them on Reddit, and their
+          SwaadNama ratings are removed too.
         </p>
+        <NeedsPermission />
         <textarea
           id="admin-post-ids"
           className={`${inputClass} min-h-24`}
@@ -278,6 +293,7 @@ export const AdminTools = ({
         <p className="px-1 text-xs leading-relaxed text-muted">
           Removes every rating they have. Their Reddit posts aren't touched.
         </p>
+        <NeedsPermission />
         <input
           id="admin-reset-user"
           className={inputClass}
@@ -309,6 +325,7 @@ export const AdminTools = ({
           people open the app). Ratings aren't touched, and Reddit's Journeys
           data can't be reset from here.
         </p>
+        <NeedsPermission />
         <DangerButton
           disabled={false}
           busy={clearingStats}
@@ -321,8 +338,17 @@ export const AdminTools = ({
   );
 };
 
-/** Admin tab: only shown to the admin account (checked on the server too). */
-export const AdminScreen = ({ subredditName }: { subredditName: string }) => {
+/**
+ * Admin tab: only shown to this subreddit's moderators (checked on the
+ * server too). Stats for any mod; the tools for mods who manage posts.
+ */
+export const AdminScreen = ({
+  subredditName,
+  canManage,
+}: {
+  subredditName: string;
+  canManage: boolean;
+}) => {
   // Bumped after the analytics are reset, to reload the overview.
   const [statsVersion, setStatsVersion] = useState(0);
   return (
@@ -339,7 +365,7 @@ export const AdminScreen = ({ subredditName }: { subredditName: string }) => {
               </p>
             )}
             <p className="text-xs text-muted">
-              Stats for this subreddit only. Only visible to you.
+              Stats for this subreddit only. Only its moderators can see this.
             </p>
           </div>
           <AdminStats refreshKey={statsVersion} />
@@ -348,7 +374,14 @@ export const AdminScreen = ({ subredditName }: { subredditName: string }) => {
             <p className="-mt-2 px-1 text-xs text-muted">
               These actions can't be undone.
             </p>
-            <AdminTools onStatsReset={() => setStatsVersion((v) => v + 1)} />
+            {canManage ? (
+              <AdminTools onStatsReset={() => setStatsVersion((v) => v + 1)} />
+            ) : (
+              <p className="px-1 text-sm text-muted">
+                These tools need the mod permission "Manage Posts &amp;
+                Comments" (or "Everything"), which you don't have here.
+              </p>
+            )}
           </div>
         </div>
       </main>

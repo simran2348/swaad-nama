@@ -40,8 +40,9 @@ You can edit or delete any of your own ratings at any time.
 1. Install the app in your subreddit.
 2. From the subreddit's menu, choose **Create SwaadNama post**.
 3. Optional: set **App status** to **Closed** in the app's settings to show
-   "Coming Soon" to members while you get ready. Set it back to **Open** to
-   let everyone in. Open is the default.
+   "Coming Soon" to members while you get ready. The subreddit's moderators
+   can still use it to try it out. Set it back to **Open** to let everyone
+   in. Open is the default.
 4. Optional: in the app's settings, set **Map area** to your city, state or
    country (for example "Pune"). The map opens on this area and place search
    prefers results there. The default is India.
@@ -95,14 +96,29 @@ A free OpenStreetMap search.
   the location picker, in light or dark style to match the theme. The
   server fetches each tile and passes it to the app, cached for a week.
 
-## Admin
+## Admin tab (moderators)
 
-The app's developer has an Admin tab, visible only to them, with:
+Moderators of the subreddit get an **Admin** tab. Access is checked with
+Reddit on every request using the moderator's permissions in _this_
+subreddit. No username is hardcoded, and the app's developer has no access
+to subreddits they don't moderate.
 
-- Usage numbers for the subreddit: ratings, active users, a weekly activity
-  chart, how many people finish adding ratings, feature usage and top raters.
-- Tools to remove the app's posts, clear a user's ratings, or reset the
-  usage numbers.
+| Action                                                                                                                                                                                    | Mod permission needed                           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| See the **Admin** tab and the **usage overview** for this subreddit (ratings, active and new users, weekly activity, how many people finish adding ratings, feature usage, top raters)    | Any (you must be a moderator of this subreddit) |
+| Use the app while **App status** is Closed                                                                                                                                                | Any                                             |
+| **Create SwaadNama post** (subreddit menu)                                                                                                                                                | Any                                             |
+| **Remove posts** in this subreddit by id or link. Members' posts are mod-removed, like removing them on Reddit, and their SwaadNama ratings go too. Posts in other subreddits are refused | **Manage Posts & Comments**, or **Everything**  |
+| **Reset a member's ratings**                                                                                                                                                              | **Manage Posts & Comments**, or **Everything**  |
+| **Reset a member's journal** (Travel, Home-made, Recipes or all of it)                                                                                                                    | **Manage Posts & Comments**, or **Everything**  |
+| **Reset the usage overview**                                                                                                                                                              | **Manage Posts & Comments**, or **Everything**  |
+
+Members never see the Admin tab, and the server rejects these requests
+from anyone without the needed permission. Each tool in the tab also shows
+the permission it needs.
+
+Settings lists the app's makers (the Team section) as a credit. Those
+usernames are only displayed and give no access.
 
 Each subreddit's data is kept separately. The app also records anonymous
 usage events with Reddit's Devvit Journeys (for example, when someone
@@ -111,9 +127,16 @@ personal data.
 
 ## Data
 
-The app stores ratings, a user's colour theme and light/dark choice, and simple usage counts
-in Reddit's storage for the app. Nothing is shared outside Reddit except
-the location lookups described above.
+The app stores ratings, journal entries, favourites, a user's colour theme
+and light/dark choice, and simple usage counts in Reddit's storage for the
+app. Nothing is shared outside Reddit except the location lookups described
+above.
+
+When a member saves a rating or a journal entry, the text they typed is also
+posted as a Reddit comment **from their account** on their own post, so it's
+attributed to them and can be reported. The save screen says so before they
+save. If that comment is deleted or removed by a moderator, the rating or
+entry is removed from the app too.
 
 See the [Privacy Policy](PRIVACY.md) and [Terms & Conditions](TERMS.md).
 

@@ -8,6 +8,9 @@ export const toAppStatus = (value: unknown): AppStatus => {
   return choice === 'closed' ? 'closed' : 'open';
 };
 
-/** Whether someone may use the app: everyone when open, else the admin. */
-export const canUseApp = (status: AppStatus, isAdminUser: boolean) =>
-  status === 'open' || isAdminUser;
+/**
+ * Whether someone may use the app: everyone when open; when closed, only
+ * this subreddit's moderators (so they can try it out first).
+ */
+export const canUseApp = (status: AppStatus, isMod: boolean) =>
+  status === 'open' || isMod;

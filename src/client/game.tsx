@@ -20,7 +20,6 @@ import {
   WrenchIcon,
 } from './components/icons';
 import { AdminScreen } from './components/AdminTools';
-import { isAdmin } from '../shared/admin';
 import { Journal } from './components/Journal';
 import { MapView } from './components/MapView';
 import { MyList } from './components/MyList';
@@ -44,7 +43,7 @@ const TABS: TabInfo[] = [
   { id: 'settings', label: 'Settings', icon: <CogIcon className="h-6 w-6" /> },
 ];
 
-/** Only for the admin account (the server checks too). */
+/** Only for this subreddit's moderators (the server checks too). */
 const ADMIN_TAB: TabInfo = {
   id: 'admin',
   label: 'Admin',
@@ -116,7 +115,7 @@ export const App = () => {
 
   useEffect(load, [load]);
 
-  // "App status" set to Closed by a mod (the admin can still get in).
+  // "App status" set to Closed by a mod (mods can still get in).
   if (data?.canUse === false) {
     return (
       <div className="flex h-full min-h-0 flex-1 flex-col">
@@ -167,8 +166,11 @@ export const App = () => {
             <Journal initialSection={journalSection} />
           ) : tab === 'map' ? (
             <MapView data={data} />
-          ) : tab === 'admin' && isAdmin(data?.username) ? (
-            <AdminScreen subredditName={data?.subredditName ?? ''} />
+          ) : tab === 'admin' && data?.mod.isMod ? (
+            <AdminScreen
+              subredditName={data.subredditName}
+              canManage={data.mod.canManage}
+            />
           ) : (
             <Settings subredditName={data?.subredditName ?? ''} />
           )}
@@ -185,7 +187,7 @@ export const App = () => {
         />
         <BottomNav
           tab={tab}
-          tabs={isAdmin(data?.username) ? [...TABS, ADMIN_TAB] : TABS}
+          tabs={data?.mod.isMod ? [...TABS, ADMIN_TAB] : TABS}
           onChange={(next) => {
             // Tapping Ratings while on it closes any screen opened inside.
             if (next === 'ratings' && tab === 'ratings') {

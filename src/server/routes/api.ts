@@ -41,7 +41,6 @@ import type {
   SaveThemeRequest,
   UserReviewsResponse,
 } from '../../shared/api';
-import { isAdmin } from '../../shared/admin';
 import { canUseApp } from '../../shared/access';
 import { getAppStatus } from '../core/access';
 import { isTrackEvent } from '../../shared/stats';
@@ -80,6 +79,7 @@ import { planJournalEntries } from '../../shared/journal';
 import { getAvatarUrl } from '../core/avatars';
 import { backfillRaters } from '../core/raterBackfill';
 import { deletePosts, resetRatings } from '../core/admin';
+import { getModAccess } from '../core/modAccess';
 import {
   getUserMode,
   getUserTheme,
@@ -150,14 +150,17 @@ const FOOD_SUGGESTION_POOL = 200;
 
 export const api = new Hono();
 
-/** Whether the current user may use the app ("App status" setting). */
-const currentUserCanUse = async (username?: string | null) =>
-  canUseApp(
-    await getAppStatus(),
-    isAdmin(username ?? (await reddit.getCurrentUsername()))
-  );
+/**
+ * Whether the current user may use the app ("App status" setting): everyone
+ * when Open; when Closed, only this subreddit's moderators (to try it out).
+ */
+const currentUserCanUse = async () => {
+  const status = await getAppStatus();
+  if (canUseApp(status, false)) return true;
+  return canUseApp(status, (await getModAccess()).isMod);
+};
 
-// While the app is Closed, only the admin can use it. The splash (/profile)
+// While the app is Closed, only this subreddit's mods can use it. The splash (/profile)
 // and /init still answer, so they can show "Coming Soon".
 api.use('*', async (c, next) => {
   const path = c.req.path.replace(/^\/api/, '');
@@ -182,7 +185,7 @@ api.get('/profile', async (c) => {
       username,
       avatarUrl: avatarUrl ?? null,
       theme,
-      canUse: await currentUserCanUse(username),
+      canUse: await currentUserCanUse(),
     });
   } catch (error) {
     console.error('API profile error:', error);
@@ -196,12 +199,14 @@ api.get('/profile', async (c) => {
 api.get('/init', async (c) => {
   try {
     const username = (await reddit.getCurrentUsername()) ?? null;
-    if (!(await currentUserCanUse(username))) {
+    const mod = await getModAccess();
+    if (!(await currentUserCanUse())) {
       return c.json<InitResponse>({
         username,
         subredditName: context.subredditName ?? '',
         mode: null,
         canUse: false,
+        mod,
         myList: [],
         foods: [],
       });
@@ -235,6 +240,7 @@ api.get('/init', async (c) => {
       subredditName: context.subredditName ?? '',
       mode,
       canUse: true,
+      mod,
       myList,
       foods,
     });
@@ -1061,14 +1067,30 @@ api.post('/stats/event', async (c) => {
   return c.json({ status: 'ok' });
 });
 
-/** Admin only: the analytics overview. */
+/**
+ * Mod tools are for this subreddit's moderators only, checked with Reddit on
+ * every call: 'view' needs any mod permission, 'manage' needs "Manage Posts &
+ * Comments" (or "Everything"). Returns the error response, or null if allowed.
+ */
+const requireMod = async (c: Context, need: 'view' | 'manage') => {
+  const access = await getModAccess();
+  if (need === 'manage' ? access.canManage : access.isMod) return null;
+  return c.json<ErrorResponse>(
+    {
+      status: 'error',
+      message:
+        need === 'manage'
+          ? 'You need the "Manage Posts & Comments" mod permission for this.'
+          : 'Only moderators of this subreddit can use mod tools.',
+    },
+    403
+  );
+};
+
+/** Mods only: the analytics overview for this subreddit. */
 api.get('/admin/stats', async (c) => {
-  if (!isAdmin(await reddit.getCurrentUsername())) {
-    return c.json<ErrorResponse>(
-      { status: 'error', message: 'Not allowed' },
-      403
-    );
-  }
+  const denied = await requireMod(c, 'view');
+  if (denied) return denied;
   const weeks = Number(c.req.query('weeks')) === 4 ? 4 : 1;
   try {
     return c.json<AdminStatsResponse>(await getAdminStats(weeks));
@@ -1077,14 +1099,10 @@ api.get('/admin/stats', async (c) => {
   }
 });
 
-/** Admin only: clears our analytics counters (not ratings, not Journeys). */
+/** Mods who manage posts: clears our analytics counters (not ratings). */
 api.post('/admin/reset-stats', async (c) => {
-  if (!isAdmin(await reddit.getCurrentUsername())) {
-    return c.json<ErrorResponse>(
-      { status: 'error', message: 'Not allowed' },
-      403
-    );
-  }
+  const denied = await requireMod(c, 'manage');
+  if (denied) return denied;
   try {
     await resetStats();
     return c.json({ status: 'ok' });
@@ -1093,14 +1111,10 @@ api.post('/admin/reset-stats', async (c) => {
   }
 });
 
-/** Admin only: deletes posts by id. */
+/** Mods who manage posts: removes posts in this subreddit by id. */
 api.post('/admin/delete-posts', async (c) => {
-  if (!isAdmin(await reddit.getCurrentUsername())) {
-    return c.json<ErrorResponse>(
-      { status: 'error', message: 'Not allowed' },
-      403
-    );
-  }
+  const denied = await requireMod(c, 'manage');
+  if (denied) return denied;
   const { ids } = await c.req.json<{ ids?: string }>();
   try {
     return c.json<AdminDeletePostsResponse>(await deletePosts(ids ?? ''));
@@ -1109,14 +1123,10 @@ api.post('/admin/delete-posts', async (c) => {
   }
 });
 
-/** Admin only: clears every rating a user has. */
+/** Mods who manage posts: clears every rating a user has. */
 api.post('/admin/reset-ratings', async (c) => {
-  if (!isAdmin(await reddit.getCurrentUsername())) {
-    return c.json<ErrorResponse>(
-      { status: 'error', message: 'Not allowed' },
-      403
-    );
-  }
+  const denied = await requireMod(c, 'manage');
+  if (denied) return denied;
   const { username: input } = await c.req.json<{ username?: string }>();
   try {
     const username = await resolveUsername(input ?? '');
@@ -1138,14 +1148,10 @@ const isAdminJournalSection = (value: unknown): value is AdminJournalSection =>
   value === 'recipe' ||
   value === 'all';
 
-/** Admin only: removes a user's journal entries in one section, or all. */
+/** Mods who manage posts: removes a user's journal entries (a section, or all). */
 api.post('/admin/reset-journal', async (c) => {
-  if (!isAdmin(await reddit.getCurrentUsername())) {
-    return c.json<ErrorResponse>(
-      { status: 'error', message: 'Not allowed' },
-      403
-    );
-  }
+  const denied = await requireMod(c, 'manage');
+  if (denied) return denied;
   const { username: input, section } = await c.req.json<{
     username?: string;
     section?: string;
